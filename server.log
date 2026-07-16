@@ -1,0 +1,287 @@
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.16.0.2:3000
+- Environments: .env
+✓ Ready in 1041ms
+
+○ Compiling / ...
+ GET / 200 in 5.5s (next.js: 4.9s, application-code: 668ms)
+ GET / 200 in 171ms (next.js: 19ms, application-code: 152ms)
+ GET /api/entries/today 200 in 808ms (next.js: 583ms, application-code: 225ms)
+ GET /api/entries/today 200 in 25ms (next.js: 9ms, application-code: 16ms)
+⨯ Error [PrismaClientValidationError]: 
+Invalid `{imported module ./src/lib/prisma.ts}["prisma"].entry.upsert()` invocation in
+C:\Users\sunil\Desktop\projects\moodie\.next\dev\server\chunks\[root-of-the-server]__0lvkxwi._.js:362:160
+
+  359         }))
+  360     }
+  361 };
+→ 362 const entry = await {imported module ./src/lib/prisma.ts}["prisma"].entry.upsert({
+        where: {
+          date: "2026-07-12"
+        },
+        update: {
+          date: "2026-07-12",
+          mood: 2,
+          energy: 1,
+          activityLevel: 1,
+          sleepHours: 8,
+          waterLevel: "1–2L",
+          stress: 3,
+          note: "got my period :(, really tired and in pain. first version of moodie. learning typescript.",
+          activities: {
+            deleteMany: {},
+            create: [
+              {
+                activityId: "cmrhz988z0002moy8nk3mgla1"
+              },
+              {
+                activityId: "cmrhz98dl000bmoy8a86ns6u8"
+              },
+              {
+                activityId: "cmrhz98ga000hmoy8fpwaoodi"
+              },
+              {
+                activityId: "cmrhz989d0003moy8gb5nnfwd"
+              }
+            ]
+          }
+        },
+        create: {
+          date: "2026-07-12",
+          mood: 2,
+          energy: 1,
+          activityLevel: 1,
+          sleepHours: 8,
+          waterLevel: "1–2L",
+          stress: 3,
+          note: "got my period :(, really tired and in pain. first version of moodie. learning typescript.",
+          activities: {
+            deleteMany: {},
+            ~~~~~~~~~~
+            create: [
+              {
+                activityId: "cmrhz988z0002moy8nk3mgla1"
+              },
+              {
+                activityId: "cmrhz98dl000bmoy8a86ns6u8"
+              },
+              {
+                activityId: "cmrhz98ga000hmoy8fpwaoodi"
+              },
+              {
+                activityId: "cmrhz989d0003moy8gb5nnfwd"
+              }
+            ],
+      ?     connectOrCreate?: EntryActivityCreateOrConnectWithoutEntryInput | EntryActivityCreateOrConnectWithoutEntryInput[],
+      ?     createMany?: EntryActivityCreateManyEntryInputEnvelope,
+      ?     connect?: EntryActivityWhereUniqueInput | EntryActivityWhereUniqueInput[]
+          }
+        },
+        include: {
+          activities: {
+            include: {
+              activity: true
+            }
+          }
+        }
+      })
+
+Unknown argument `deleteMany`. Available options are marked with ?.
+    at <unknown> (src\app\api\entries\route.ts:32:36)
+    at async POST (src\app\api\entries\route.ts:32:17)
+  30 |   }
+  31 |
+> 32 |   const entry = await prisma.entry.upsert({
+     |                                    ^
+  33 |     where: { date },
+  34 |     update: data,
+  35 |     create: data, {
+  clientVersion: '7.8.0'
+}
+ POST /api/entries 500 in 467ms (next.js: 183ms, application-code: 283ms)
+ GET /calendar 200 in 1006ms (next.js: 942ms, application-code: 64ms)
+ GET /api/entries?month=7&year=2026 200 in 44ms (next.js: 9ms, application-code: 35ms)
+ GET /api/entries?month=7&year=2026 200 in 36ms (next.js: 9ms, application-code: 27ms)
+ GET / 200 in 63ms (next.js: 10ms, application-code: 54ms)
+ GET /api/entries/today 200 in 28ms (next.js: 9ms, application-code: 19ms)
+ GET /api/entries/today 200 in 22ms (next.js: 6ms, application-code: 15ms)
+ GET /calendar 200 in 53ms (next.js: 10ms, application-code: 43ms)
+ GET /api/entries?month=7&year=2026 200 in 28ms (next.js: 12ms, application-code: 16ms)
+ GET /api/entries?month=7&year=2026 200 in 28ms (next.js: 5ms, application-code: 23ms)
+ GET /api/entries?month=6&year=2026 200 in 23ms (next.js: 7ms, application-code: 16ms)
+ GET /api/entries?month=7&year=2026 200 in 19ms (next.js: 5ms, application-code: 13ms)
+ GET /discoveries 200 in 564ms (next.js: 506ms, application-code: 57ms)
+ GET /api/discoveries 200 in 222ms (next.js: 209ms, application-code: 13ms)
+ GET /api/discoveries 200 in 18ms (next.js: 6ms, application-code: 13ms)
+ GET /habits 200 in 484ms (next.js: 436ms, application-code: 48ms)
+ GET /api/habits?month=7&year=2026 200 in 186ms (next.js: 168ms, application-code: 17ms)
+ GET /api/habits?month=7&year=2026 200 in 19ms (next.js: 6ms, application-code: 14ms)
+ POST /api/habits 200 in 52ms (next.js: 5ms, application-code: 46ms)
+ POST /api/habits 200 in 40ms (next.js: 3ms, application-code: 37ms)
+ GET / 200 in 52ms (next.js: 9ms, application-code: 44ms)
+ GET /api/entries/today 200 in 27ms (next.js: 6ms, application-code: 21ms)
+ GET /api/entries/today 200 in 29ms (next.js: 9ms, application-code: 20ms)
+⨯ Error [PrismaClientValidationError]: 
+Invalid `{imported module ./src/lib/prisma.ts}["prisma"].entry.upsert()` invocation in
+C:\Users\sunil\Desktop\projects\moodie\.next\dev\server\chunks\[root-of-the-server]__0lvkxwi._.js:362:160
+
+  359         }))
+  360     }
+  361 };
+→ 362 const entry = await {imported module ./src/lib/prisma.ts}["prisma"].entry.upsert({
+        where: {
+          date: "2026-07-12"
+        },
+        update: {
+          date: "2026-07-12",
+          mood: 3,
+          energy: 0,
+          activityLevel: 0,
+          sleepHours: 0,
+          waterLevel: "",
+          stress: 0,
+          note: null,
+          activities: {
+            deleteMany: {},
+            create: []
+          }
+        },
+        create: {
+          date: "2026-07-12",
+          mood: 3,
+          energy: 0,
+          activityLevel: 0,
+          sleepHours: 0,
+          waterLevel: "",
+          stress: 0,
+          note: null,
+          activities: {
+            deleteMany: {},
+            ~~~~~~~~~~
+            create: [],
+      ?     connectOrCreate?: EntryActivityCreateOrConnectWithoutEntryInput | EntryActivityCreateOrConnectWithoutEntryInput[],
+      ?     createMany?: EntryActivityCreateManyEntryInputEnvelope,
+      ?     connect?: EntryActivityWhereUniqueInput | EntryActivityWhereUniqueInput[]
+          }
+        },
+        include: {
+          activities: {
+            include: {
+              activity: true
+            }
+          }
+        }
+      })
+
+Unknown argument `deleteMany`. Available options are marked with ?.
+    at <unknown> (src\app\api\entries\route.ts:32:36)
+    at async POST (src\app\api\entries\route.ts:32:17)
+  30 |   }
+  31 |
+> 32 |   const entry = await prisma.entry.upsert({
+     |                                    ^
+  33 |     where: { date },
+  34 |     update: data,
+  35 |     create: data, {
+  clientVersion: '7.8.0'
+}
+ POST /api/entries 500 in 214ms (next.js: 8ms, application-code: 207ms)
+ GET /habits 200 in 38ms (next.js: 8ms, application-code: 31ms)
+ GET /api/habits?month=7&year=2026 200 in 20ms (next.js: 7ms, application-code: 13ms)
+ GET /api/habits?month=7&year=2026 200 in 17ms (next.js: 3ms, application-code: 14ms)
+ GET /calendar 200 in 34ms (next.js: 9ms, application-code: 26ms)
+ GET /api/entries?month=7&year=2026 200 in 19ms (next.js: 6ms, application-code: 14ms)
+ GET /api/entries?month=7&year=2026 200 in 19ms (next.js: 7ms, application-code: 11ms)
+ GET / 200 in 29ms (next.js: 3ms, application-code: 26ms)
+ GET /api/entries/today 200 in 15ms (next.js: 6ms, application-code: 9ms)
+ GET /api/entries/today 200 in 20ms (next.js: 5ms, application-code: 16ms)
+ GET / 200 in 631ms (next.js: 243ms, application-code: 387ms)
+ GET / 200 in 264ms (next.js: 32ms, application-code: 232ms)
+ GET /api/entries/today 200 in 51ms (next.js: 22ms, application-code: 29ms)
+⨯ Error [PrismaClientValidationError]: 
+Invalid `{imported module ./src/lib/prisma.ts}["prisma"].entry.upsert()` invocation in
+C:\Users\sunil\Desktop\projects\moodie\.next\dev\server\chunks\[root-of-the-server]__0lvkxwi._.js:362:160
+
+  359         }))
+  360     }
+  361 };
+→ 362 const entry = await {imported module ./src/lib/prisma.ts}["prisma"].entry.upsert({
+        where: {
+          date: "2026-07-12"
+        },
+        update: {
+          date: "2026-07-12",
+          mood: 2,
+          energy: 0,
+          activityLevel: 0,
+          sleepHours: 0,
+          waterLevel: "",
+          stress: 0,
+          note: null,
+          activities: {
+            deleteMany: {},
+            create: []
+          }
+        },
+        create: {
+          date: "2026-07-12",
+          mood: 2,
+          energy: 0,
+          activityLevel: 0,
+          sleepHours: 0,
+          waterLevel: "",
+          stress: 0,
+          note: null,
+          activities: {
+            deleteMany: {},
+            ~~~~~~~~~~
+            create: [],
+      ?     connectOrCreate?: EntryActivityCreateOrConnectWithoutEntryInput | EntryActivityCreateOrConnectWithoutEntryInput[],
+      ?     createMany?: EntryActivityCreateManyEntryInputEnvelope,
+      ?     connect?: EntryActivityWhereUniqueInput | EntryActivityWhereUniqueInput[]
+          }
+        },
+        include: {
+          activities: {
+            include: {
+              activity: true
+            }
+          }
+        }
+      })
+
+Unknown argument `deleteMany`. Available options are marked with ?.
+    at <unknown> (src\app\api\entries\route.ts:32:36)
+    at async POST (src\app\api\entries\route.ts:32:17)
+  30 |   }
+  31 |
+> 32 |   const entry = await prisma.entry.upsert({
+     |                                    ^
+  33 |     where: { date },
+  34 |     update: data,
+  35 |     create: data, {
+  clientVersion: '7.8.0'
+}
+ POST /api/entries 500 in 822ms (next.js: 29ms, application-code: 793ms)
+ GET /calendar 200 in 103ms (next.js: 32ms, application-code: 71ms)
+ GET /api/entries?month=7&year=2026 200 in 46ms (next.js: 10ms, application-code: 36ms)
+ GET /api/entries?month=7&year=2026 200 in 36ms (next.js: 12ms, application-code: 24ms)
+ GET /habits 200 in 101ms (next.js: 32ms, application-code: 69ms)
+ GET /api/habits?month=7&year=2026 200 in 32ms (next.js: 13ms, application-code: 19ms)
+ GET /api/habits?month=7&year=2026 200 in 37ms (next.js: 7ms, application-code: 30ms)
+ GET /discoveries 200 in 98ms (next.js: 21ms, application-code: 77ms)
+ GET /api/discoveries 200 in 32ms (next.js: 12ms, application-code: 19ms)
+ GET /api/discoveries 200 in 23ms (next.js: 6ms, application-code: 17ms)
+ GET /habits 200 in 74ms (next.js: 10ms, application-code: 64ms)
+ GET /api/habits?month=7&year=2026 200 in 32ms (next.js: 11ms, application-code: 21ms)
+ GET /api/habits?month=7&year=2026 200 in 24ms (next.js: 7ms, application-code: 17ms)
+ GET / 200 in 70ms (next.js: 9ms, application-code: 60ms)
+ GET /api/entries/today 200 in 36ms (next.js: 14ms, application-code: 22ms)
+ GET /api/entries/today 200 in 45ms (next.js: 12ms, application-code: 33ms)
+✓ Compiled in 304ms
+ GET / 200 in 769ms (next.js: 443ms, application-code: 326ms)
+ GET / 200 in 143ms (next.js: 19ms, application-code: 123ms)
+ GET / 200 in 380ms (next.js: 180ms, application-code: 200ms)
+ GET / 200 in 152ms (next.js: 5ms, application-code: 146ms)
+ GET / 200 in 94ms (next.js: 10ms, application-code: 84ms)

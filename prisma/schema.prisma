@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Entry {
+  id            String   @id @default(cuid())
+  date          String   @unique
+  mood          Int
+  energy        Int
+  activityLevel Int
+  sleepHours    Float
+  waterLevel    String
+  stress        Int
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  activities    EntryActivity[]
+}
+
+model Activity {
+  id   String @id @default(cuid())
+  name String @unique
+
+  entries EntryActivity[]
+}
+
+model EntryActivity {
+  entryId    String
+  activityId String
+  entry      Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, activityId])
+}
+
+model Habit {
+  id    String @id @default(cuid())
+  name  String @unique
+  icon  String
+  color String
+
+  completions HabitCompletion[]
+}
+
+model HabitCompletion {
+  id        String  @id @default(cuid())
+  habitId   String
+  date      String
+  completed Boolean @default(false)
+  habit     Habit   @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+}

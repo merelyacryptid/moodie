@@ -1,6 +1,6 @@
 You are an expert full-stack software engineer and UI/UX designer.
 
-Build a beautiful, minimal, local-first personal wellbeing web app called "Polaris."
+Build a beautiful, minimal, local-first personal wellbeing web app called "moodie."
 
 This application is for personal use only. There should be NO authentication, NO accounts and NO cloud storage.
 
