@@ -44,14 +44,15 @@ export async function GET() {
     }
   }
 
-  // Streaks
+  // Streaks (deduplicate by date)
+  const uniqueDates = [...new Set(entries.map((e) => e.date))].sort()
   let currentStreak = 0
   let longestStreak = 0
   let streakCount = 0
   let prevDate: Date | null = null
 
-  for (const entry of entries) {
-    const d = new Date(entry.date)
+  for (const dateStr of uniqueDates) {
+    const d = new Date(dateStr)
     if (prevDate) {
       const diff = (d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
       if (diff === 1) {
@@ -69,11 +70,11 @@ export async function GET() {
 
   // Check if today is logged
   const today = new Date().toISOString().split("T")[0]
-  const lastEntry = entries[entries.length - 1]
-  if (lastEntry && lastEntry.date === today) {
+  const lastDateStr = uniqueDates[uniqueDates.length - 1]
+  if (lastDateStr === today) {
     currentStreak = streakCount
-  } else if (lastEntry) {
-    const lastDate = new Date(lastEntry.date)
+  } else if (lastDateStr) {
+    const lastDate = new Date(lastDateStr)
     const diff = (new Date().getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
     currentStreak = diff <= 1 ? streakCount : 0
   }

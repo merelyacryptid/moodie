@@ -57,8 +57,8 @@ export function moodToEmoji(mood: number): string {
 }
 
 export function moodToColor(mood: number): string {
-  if (mood >= 4) return "bg-yellow-100"
-  if (mood === 3) return "bg-amber-50"
-  if (mood === 2) return "bg-blue-100"
-  return "bg-purple-100"
+  if (mood >= 4) return "bg-yellow-200"
+  if (mood === 3) return "bg-amber-100"
+  if (mood === 2) return "bg-sky-200"
+  return "bg-purple-200"
 }

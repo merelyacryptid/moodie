@@ -9,18 +9,23 @@ datasource db {
 
 model Entry {
   id            String   @id @default(cuid())
-  date          String   @unique
+  date          String
+  timeOfDay     String   @default("morning")
   mood          Int
   energy        Int
-  activityLevel Int
-  sleepHours    Float
-  waterLevel    String
-  stress        Int
+  activityLevel Int      @default(0)
+  sleepHours    Float    @default(0)
+  waterLevel    String   @default("")
+  stress        Int      @default(0)
   note          String?
+  journal       String?
+  loggedAt      DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   activities    EntryActivity[]
+
+  @@unique([date, timeOfDay])
 }
 
 model Activity {

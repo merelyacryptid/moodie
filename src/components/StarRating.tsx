@@ -1,7 +1,6 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Star } from "lucide-react"
 
 interface StarRatingProps {
   value: number
@@ -12,9 +11,9 @@ interface StarRatingProps {
 }
 
 const sizeClasses = {
-  sm: "w-4 h-4",
-  md: "w-6 h-6",
-  lg: "w-8 h-8",
+  sm: "text-sm",
+  md: "text-xl",
+  lg: "text-3xl",
 }
 
 export function StarRating({ value, onChange, max = 5, size = "md", interactive = true }: StarRatingProps) {
@@ -27,20 +26,18 @@ export function StarRating({ value, onChange, max = 5, size = "md", interactive 
           disabled={!interactive}
           onClick={() => onChange?.(star)}
           className={cn(
-            "transition-all duration-150",
-            interactive && "cursor-pointer hover:scale-110",
+            sizeClasses[size],
+            "transition-all duration-200",
+            star <= value ? "opacity-100" : "opacity-30",
+            interactive && [
+              "cursor-pointer",
+              "hover:scale-125",
+              "hover:opacity-90",
+            ],
             !interactive && "cursor-default"
           )}
         >
-          <Star
-            className={cn(
-              sizeClasses[size],
-              "transition-colors duration-150",
-              star <= value
-                ? "fill-yellow-400 text-yellow-400"
-                : "fill-none text-yellow-200"
-            )}
-          />
+          ⭐
         </button>
       ))}
     </div>
