@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${nunito.variable} ${fredoka.variable} h-full antialiased`}>
+    <html lang="en" className={`${nunito.variable} ${fredoka.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-[#fef9ef] text-stone-800">
         <main className="flex-1 pb-20 max-w-lg mx-auto w-full px-4 pt-6">
           {children}

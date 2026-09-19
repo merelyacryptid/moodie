@@ -92,6 +92,7 @@ type Tab = "mood" | "journal"
 export function TodayPage() {
   const [date, setDate] = useState(getLocalDateString())
   const [entry, setEntry] = useState<EntryData>(defaultEntry(getLocalDateString()))
+  const [drafts, setDrafts] = useState<Record<string, EntryData>>({})
   const [dayEntries, setDayEntries] = useState<EntryResponse[]>([])
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -113,6 +114,7 @@ export function TodayPage() {
     setLoading(true)
     setSaved(false)
     setError("")
+    setDrafts({})
     const tod = getDefaultTimeOfDay()
 
     fetch(`/api/entries/today?date=${date}`)
@@ -157,6 +159,17 @@ export function TodayPage() {
   }, [])
 
   const switchTimeOfDay = (tod: string) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [`${date}|${entry.timeOfDay}`]: entry,
+    }))
+
+    const draftKey = `${date}|${tod}`
+    if (drafts[draftKey]) {
+      setEntry(drafts[draftKey])
+      return
+    }
+
     const existing = dayEntries.find((e) => e.timeOfDay === tod)
     if (existing) {
       setEntry({
@@ -173,7 +186,7 @@ export function TodayPage() {
         activityNames: existing.activities.map((ea) => ea.activity.name),
       })
     } else {
-      setEntry((prev) => ({ ...defaultEntry(date), timeOfDay: tod }))
+      setEntry({ ...defaultEntry(date), timeOfDay: tod })
     }
   }
 
@@ -227,6 +240,11 @@ export function TodayPage() {
         body: JSON.stringify(entry),
       })
       if (res.ok) {
+        setDrafts((prev) => {
+          const next = { ...prev }
+          delete next[`${date}|${entry.timeOfDay}`]
+          return next
+        })
         setSaved(true)
       } else {
         const text = await res.text()

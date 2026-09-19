@@ -6,20 +6,20 @@ import { WelcomePage } from "@/features/welcome/WelcomePage"
 
 export default function Home() {
   const [showWelcome, setShowWelcome] = useState(true)
-  const [hydrated, setHydrated] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const seen = sessionStorage.getItem("moodie-welcome-seen")
+    setMounted(true)
+    const seen = localStorage.getItem("moodie-welcome-seen")
     if (seen) setShowWelcome(false)
-    setHydrated(true)
   }, [])
 
   const handleStart = () => {
-    sessionStorage.setItem("moodie-welcome-seen", "true")
+    localStorage.setItem("moodie-welcome-seen", "true")
     setShowWelcome(false)
   }
 
-  if (!hydrated) return null
+  if (!mounted) return null
 
   if (showWelcome) return <WelcomePage onStart={handleStart} />
 

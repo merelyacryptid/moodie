@@ -62,3 +62,33 @@ export function moodToColor(mood: number): string {
   if (mood === 2) return "bg-sky-200"
   return "bg-purple-200"
 }
+
+export type TimeOfDay = "morning" | "afternoon" | "evening"
+
+export interface Entry {
+  id: string                    // crypto.randomUUID()
+  date: string                  // "YYYY-MM-DD"
+  timeOfDay: TimeOfDay
+  mood: number | null           // 1-5
+  energy: number | null
+  activityLevel: number | null
+  sleepHours: number | null
+  waterLevel: WaterLevel | null
+  stress: number | null
+  note: string | null
+  journal: string[] | null
+  activities: string[]          // activity names, custom ones included
+  loggedAt: number              // Date.now()
+}
+
+export interface Habit {
+  id: string
+  name: string
+  icon: string
+  color: string
+}
+
+export interface HabitCompletion {
+  habitId: string
+  date: string
+}
