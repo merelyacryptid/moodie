@@ -1,39 +1,10 @@
-import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { NextResponse } from "next/server"
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const month = parseInt(searchParams.get("month") || "")
-  const year = parseInt(searchParams.get("year") || "")
-
-  const habits = await prisma.habit.findMany({
-    include: {
-      completions: month && year
-        ? {
-            where: {
-              date: {
-                gte: `${year}-${String(month).padStart(2, "0")}-01`,
-                lte: `${year}-${String(month).padStart(2, "0")}-31`,
-              },
-            },
-          }
-        : true,
-    },
-    orderBy: { name: "asc" },
-  })
-
-  return NextResponse.json(habits)
+// Local-first: habits and completions are stored in IndexedDB on the client
+export async function GET() {
+  return NextResponse.json([])
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { habitId, date, completed } = body
-
-  const completion = await prisma.habitCompletion.upsert({
-    where: { habitId_date: { habitId, date } },
-    update: { completed },
-    create: { habitId, date, completed },
-  })
-
-  return NextResponse.json(completion)
+export async function POST() {
+  return NextResponse.json({ success: true })
 }
