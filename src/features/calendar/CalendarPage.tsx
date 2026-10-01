@@ -55,13 +55,33 @@ function MoodChart({ entries }: { entries: Entry[] }) {
   )
 }
 
-export function CalendarPage() {
-  const userName = useUserName()
+export interface CalendarPageProps {
+  name?: string
+  userName?: string | { name?: string }
+}
+
+export function CalendarPage({ name: propName, userName: propUserName }: CalendarPageProps = {}) {
+  const { name: hookUserName } = useUserName()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [, setSelectedIndex] = useState(0)
+
+  // Safely extract string name, handling prop string, prop object, or hook fallback
+  const userName = useMemo(() => {
+    const raw = propUserName ?? propName ?? hookUserName
+    if (typeof raw === "string") return raw.trim()
+    if (typeof raw === "object" && raw && "name" in raw) {
+      return String((raw as any).name || "").trim()
+    }
+    return ""
+  }, [propUserName, propName, hookUserName])
+
+  const todayStr = useMemo(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  }, [])
 
   // Reactively query all entries from local IndexedDB
   const liveEntries = useLiveQuery(() => db.entries.toArray(), [])
@@ -118,34 +138,53 @@ export function CalendarPage() {
   const monthName = new Date(year, month - 1).toLocaleDateString("en-US", {
     month: "long", year: "numeric",
   })
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const dayNamesFull = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6 w-full transition-all">
       {isMock && <MockDataNotice />}
-      <h1 className="font-display text-2xl text-stone-700 text-center">
-        {userName ? `${userName}'s Calendar` : "Calendar"}
-      </h1>
 
-      <div className="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm border border-stone-100">
-        <button onClick={prevMonth} className="p-1 hover:text-yellow-500 transition-colors">
-          <ChevronLeft className="w-5 h-5" />
+      <div className="text-center space-y-1">
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-stone-700 transition-all">
+          {userName ? `${userName}'s Calendar` : "Calendar"}
+        </h1>
+        <p className="text-xs sm:text-sm text-stone-400">
+          A gentle overview of your daily rhythms
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm border border-stone-100 transition-all">
+        <button
+          onClick={prevMonth}
+          className="p-1.5 sm:p-2 rounded-xl text-stone-500 hover:bg-stone-100 hover:text-amber-500 transition-colors cursor-pointer"
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
-        <span className="font-medium text-stone-700">{monthName}</span>
-        <button onClick={nextMonth} className="p-1 hover:text-yellow-500 transition-colors">
-          <ChevronRight className="w-5 h-5" />
+        <span className="font-display text-base sm:text-xl font-medium text-stone-700">{monthName}</span>
+        <button
+          onClick={nextMonth}
+          className="p-1.5 sm:p-2 rounded-xl text-stone-500 hover:bg-stone-100 hover:text-amber-500 transition-colors cursor-pointer"
+          aria-label="Next month"
+        >
+          <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100">
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {dayNames.map((d) => (
-            <div key={d} className="text-center text-xs font-medium text-stone-400 py-1">{d}</div>
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 md:p-6 shadow-sm border border-stone-100 transition-all">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 md:gap-3 mb-1 sm:mb-2">
+          {dayNamesShort.map((d, idx) => (
+            <div key={d} className="text-center text-xs sm:text-sm font-semibold text-stone-400 py-1">
+              <span className="sm:hidden">{d}</span>
+              <span className="hidden sm:inline md:hidden">{d}</span>
+              <span className="hidden md:inline">{dayNamesFull[idx]}</span>
+            </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 md:gap-3">
           {Array.from({ length: firstDayOfWeek }, (_, i) => (
-            <div key={`empty-${i}`} />
+            <div key={`empty-${i}`} className="aspect-square w-full" />
           ))}
           {Array.from({ length: daysInMonth }, (_, i) => {
             const day = i + 1
@@ -160,6 +199,8 @@ export function CalendarPage() {
                 day={day}
                 mood={dayAvgMood}
                 hasEntry={dayEntries.length > 0}
+                entryCount={dayEntries.length}
+                isToday={dateStr === todayStr}
                 onClick={() => { setSelectedDate(dateStr); setSelectedIndex(0) }}
               />
             )
@@ -168,35 +209,39 @@ export function CalendarPage() {
       </div>
 
       <Dialog open={!!selectedDate} onOpenChange={(open) => { if (!open) { setSelectedDate(null); setSelectedIndex(0) } }}>
-        <DialogContent className="bg-white rounded-2xl p-5 max-w-sm">
+        <DialogContent className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 max-w-sm sm:max-w-md md:max-w-lg w-full">
           {selectedDate && (
             <>
-              <DialogTitle className="text-lg font-semibold text-stone-700 flex items-center justify-between gap-2">
+              <DialogTitle className="text-lg sm:text-xl font-semibold text-stone-700 flex items-center justify-between gap-2">
                 <button
                   onClick={goPrevDate}
                   disabled={currentDateIdx <= 0}
-                  className={`p-1 rounded-lg transition-colors ${
+                  className={`p-1.5 rounded-xl transition-colors ${
                     currentDateIdx > 0
-                      ? "text-stone-500 hover:bg-stone-100 hover:text-yellow-500"
+                      ? "text-stone-500 hover:bg-stone-100 hover:text-amber-500 cursor-pointer"
                       : "text-stone-200 cursor-default"
                   }`}
+                  aria-label="Previous recorded day"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <span className="flex items-center gap-2">
-                  {moodToEmoji(avgMood)}{" "}
-                  {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
-                    weekday: "long", month: "short", day: "numeric",
-                  })}
+                  {avgMood > 0 && <span className="text-xl sm:text-2xl">{moodToEmoji(avgMood)}</span>}
+                  <span>
+                    {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
+                      weekday: "short", month: "short", day: "numeric",
+                    })}
+                  </span>
                 </span>
                 <button
                   onClick={goNextDate}
                   disabled={currentDateIdx >= sortedDates.length - 1}
-                  className={`p-1 rounded-lg transition-colors ${
+                  className={`p-1.5 rounded-xl transition-colors ${
                     currentDateIdx < sortedDates.length - 1
-                      ? "text-stone-500 hover:bg-stone-100 hover:text-yellow-500"
+                      ? "text-stone-500 hover:bg-stone-100 hover:text-amber-500 cursor-pointer"
                       : "text-stone-200 cursor-default"
                   }`}
+                  aria-label="Next recorded day"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -208,43 +253,50 @@ export function CalendarPage() {
 
               {sortedSelected.length > 1 && <MoodChart entries={sortedSelected} />}
 
-              <div className="space-y-4 mt-2 max-h-80 overflow-y-auto">
-                {sortedSelected.map((entry) => (
-                  <div key={entry.id} className="border border-stone-100 rounded-xl p-3">
-                    <p className="text-xs font-medium text-stone-400 capitalize mb-2">{entry.timeOfDay}</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-stone-500">Mood</span>
-                        <StarRating value={entry.mood} interactive={false} size="sm" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-stone-500">Energy</span>
-                        <StarRating value={entry.energy} interactive={false} size="sm" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-stone-500">Stress</span>
-                        <StarRating value={entry.stress} interactive={false} size="sm" />
-                      </div>
-                      {entry.activities && entry.activities.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {entry.activities.map((act) => {
-                            const name = typeof act === "string" ? act : (act as any).activity?.name
-                            if (!name) return null
-                            return (
-                              <span key={name} className="text-xs bg-yellow-100 text-yellow-800 rounded-full px-2 py-0.5">
-                                {name}
-                              </span>
-                            )
-                          })}
+              {sortedSelected.length === 0 ? (
+                <div className="py-8 text-center text-stone-400 space-y-1">
+                  <p className="text-2xl">🌿</p>
+                  <p className="text-sm">No reflections recorded for this day.</p>
+                </div>
+              ) : (
+                <div className="space-y-3.5 mt-2 max-h-[60vh] overflow-y-auto pr-1">
+                  {sortedSelected.map((entry) => (
+                    <div key={entry.id} className="border border-stone-100 rounded-2xl p-3 sm:p-4 bg-stone-50/50">
+                      <p className="text-xs font-semibold text-stone-400 capitalize mb-2">{entry.timeOfDay}</p>
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-stone-500">Mood</span>
+                          <StarRating value={entry.mood} interactive={false} size="sm" />
                         </div>
-                      )}
-                      {entry.note && (
-                        <p className="text-xs text-stone-600 bg-stone-50 rounded-lg p-2">{entry.note}</p>
-                      )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-stone-500">Energy</span>
+                          <StarRating value={entry.energy} interactive={false} size="sm" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-stone-500">Stress</span>
+                          <StarRating value={entry.stress} interactive={false} size="sm" />
+                        </div>
+                        {entry.activities && entry.activities.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {entry.activities.map((act) => {
+                              const name = typeof act === "string" ? act : (act as any).activity?.name
+                              if (!name) return null
+                              return (
+                                <span key={name} className="text-xs bg-amber-100/80 text-amber-900 rounded-full px-2.5 py-0.5 font-medium">
+                                  {name}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
+                        {entry.note && (
+                          <p className="text-xs text-stone-600 bg-white border border-stone-100 rounded-xl p-2.5">{entry.note}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </DialogContent>
@@ -252,3 +304,4 @@ export function CalendarPage() {
     </div>
   )
 }
+

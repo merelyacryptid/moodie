@@ -17,7 +17,7 @@ export function BottomNavigation() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-t border-stone-200">
-      <div className="mx-auto max-w-lg flex items-center justify-around py-2">
+      <div className="mx-auto max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl flex items-center justify-around py-2 sm:py-3 transition-all duration-300">
         {navItems.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
