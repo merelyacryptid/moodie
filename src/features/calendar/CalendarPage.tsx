@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { db } from "@/lib/db"
 import { generateMockEntries } from "@/lib/mockData"
 import { MockDataNotice } from "@/components/MockDataNotice"
+import { useUserName } from "@/hooks/useUserName"
 
 const TIME_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2 }
 
@@ -55,6 +56,7 @@ function MoodChart({ entries }: { entries: Entry[] }) {
 }
 
 export function CalendarPage() {
+  const userName = useUserName()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -121,7 +123,9 @@ export function CalendarPage() {
   return (
     <div className="space-y-4">
       {isMock && <MockDataNotice />}
-      <h1 className="font-display text-2xl text-stone-700 text-center">Calendar</h1>
+      <h1 className="font-display text-2xl text-stone-700 text-center">
+        {userName ? `${userName}'s Calendar` : "Calendar"}
+      </h1>
 
       <div className="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm border border-stone-100">
         <button onClick={prevMonth} className="p-1 hover:text-yellow-500 transition-colors">

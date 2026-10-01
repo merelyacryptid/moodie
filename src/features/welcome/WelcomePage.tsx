@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { getDailyQuote } from "@/lib/quotes"
 import { Sparkles, ArrowRight } from "lucide-react"
+import { getUserName, setUserName } from "@/lib/user"
 
 type Point = { x: number; y: number }
 
@@ -116,38 +117,68 @@ function HeadNode({
   )
 }
 
+type WelcomeStep =
+  | "first_welcome"
+  | "first_ask_name"
+  | "first_welcomed"
+  | "returning_welcome"
+  | "quote_revealed"
+
 export function WelcomePage({ onStart }: { onStart: () => void }) {
   const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 })
   const [viewport, setViewport] = useState({ width: 1024, height: 768 })
 
-  // Sequential Experience States: "typing" -> "readyForQuote" -> "quoteRevealed"
-  const fullText = "Hello there"
+  // User name state
+  const initialName = useMemo(() => getUserName(), [])
+  const isFirstTime = !initialName
+  const [currentName, setCurrentName] = useState(initialName)
+  const [nameInput, setNameInput] = useState("")
+
+  // Initial step based on whether username is known
+  const [step, setStep] = useState<WelcomeStep>(
+    initialName ? "returning_welcome" : "first_welcome"
+  )
+
+  // Typewriter text
+  const targetText = initialName
+    ? `welcome back, ${initialName}`
+    : "welcome to moodie"
+
   const [typedText, setTypedText] = useState("")
   const [isTyping, setIsTyping] = useState(true)
-  const [step, setStep] = useState<"typing" | "readyForQuote" | "quoteRevealed">("typing")
   const quote = useMemo(() => getDailyQuote(), [])
 
-  // Step 1: Typewriter effect begins shortly after eyes appear
+  // Typewriter effect on initial load
   useEffect(() => {
     let index = 0
     const delayTimer = setTimeout(() => {
       const interval = setInterval(() => {
         index++
-        setTypedText(fullText.slice(0, index))
-        if (index >= fullText.length) {
+        setTypedText(targetText.slice(0, index))
+        if (index >= targetText.length) {
           clearInterval(interval)
           setIsTyping(false)
-          setTimeout(() => {
-            setStep("readyForQuote")
-          }, 450)
         }
-      }, 75)
+      }, 70)
 
       return () => clearInterval(interval)
-    }, 380)
+    }, 350)
 
     return () => clearTimeout(delayTimer)
-  }, [])
+  }, [targetText])
+
+  const handleSaveName = () => {
+    const trimmed = nameInput.trim()
+    if (trimmed) {
+      setUserName(trimmed)
+      setCurrentName(trimmed)
+    }
+    setStep("first_welcomed")
+  }
+
+  const handleSkipName = () => {
+    setStep("first_welcomed")
+  }
 
   // Viewport and mouse movement tracking
   useEffect(() => {
@@ -180,6 +211,31 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
     return buildHeads(viewport.width, viewport.height)
   }, [viewport.width, viewport.height])
 
+  // Determine main header text for each step
+  const renderHeaderTitle = () => {
+    switch (step) {
+      case "first_welcome":
+      case "returning_welcome":
+        return (
+          <>
+            <span>{typedText}</span>
+            {isTyping && (
+              <span className="inline-block w-1 h-7 sm:h-9 bg-amber-400 ml-1.5 animate-pulse rounded-full" />
+            )}
+          </>
+        )
+      case "first_ask_name":
+        return <span>what should i call you?</span>
+      case "first_welcomed":
+        return <span>{currentName ? `welcome, ${currentName}` : "welcome"}</span>
+      case "quote_revealed":
+        if (isFirstTime) {
+          return <span>{currentName ? `welcome, ${currentName}` : "welcome"}</span>
+        }
+        return <span>{currentName ? `welcome back, ${currentName}` : "welcome back"}</span>
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden bg-[#fdf7ec]">
       {/* Background radial gradient to keep ambient warmth soft and balanced */}
@@ -192,43 +248,121 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
         ))}
       </div>
 
-      {/* Interactive Content Area - Positioned towards the center vertically, locked constant */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-start pt-[25vh] sm:pt-[29vh] px-6 text-center">
+      {/* Interactive Content Area - Positioned towards center vertically and fixed */}
+      <div className="relative z-10 flex h-full flex-col items-center justify-start pt-[23vh] sm:pt-[26vh] px-6 text-center">
         <div className="max-w-md w-full space-y-6">
-          {/* Step 1: Self-typing Title */}
+          {/* Main Title Area */}
           <div className="space-y-2 select-none">
             <h1 className="font-display text-4xl sm:text-5xl text-stone-900 tracking-tight min-h-[52px] sm:min-h-[60px] flex items-center justify-center">
-              <span>{typedText}</span>
-              {isTyping && (
-                <span className="inline-block w-1 h-7 sm:h-9 bg-amber-400 ml-1.5 animate-pulse rounded-full" />
-              )}
+              {renderHeaderTitle()}
             </h1>
 
-            <p
-              className={`text-xs sm:text-sm text-stone-500 font-medium tracking-wide transition-opacity duration-700 ${
-                typedText.length >= 2 ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              a gentle reflection companion
-            </p>
+            {/* Subtitle: Only shown for first-time welcome, removed when username is known */}
+            {step === "first_welcome" && (
+              <p
+                className={`text-xs sm:text-sm text-stone-500 font-medium tracking-wide transition-opacity duration-700 ${
+                  typedText.length >= 7 ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                a gentle reflection companion
+              </p>
+            )}
           </div>
 
-          {/* Step 2: "Read today's quote" button */}
-          {step === "readyForQuote" && (
-            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
+          {/* Workflow 1: First-time user -> Step 1: "let's get started" */}
+          {step === "first_welcome" && !isTyping && (
+            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <button
                 type="button"
-                onClick={() => setStep("quoteRevealed")}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white/45 hover:bg-white/70 backdrop-blur-md text-amber-950 border border-white/70 px-5 py-2.5 text-sm font-medium transition-all duration-200 hover:scale-105 shadow-[0_4px_16px_0_rgba(28,25,23,0.04)] cursor-pointer"
+                onClick={() => setStep("first_ask_name")}
+                className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-7 py-3 text-sm transition-all duration-200 hover:scale-105 shadow-sm hover:shadow-md cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-amber-500 fill-amber-300" />
-                <span>Read today&apos;s quote</span>
+                <span>let&apos;s get started</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           )}
 
-          {/* Step 3: Translucent Glass Quote Card & Final Start Button */}
-          {step === "quoteRevealed" && (
+          {/* Workflow 1: First-time user -> Step 2: "what should i call you?" */}
+          {step === "first_ask_name" && (
+            <div className="space-y-3 pt-1 animate-in fade-in zoom-in-95 duration-300">
+              <div className="flex items-center gap-2 max-w-xs mx-auto">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveName()
+                  }}
+                  placeholder="your name or nickname"
+                  maxLength={24}
+                  className="w-full bg-white/55 hover:bg-white/70 focus:bg-white/85 backdrop-blur-md border border-white/80 rounded-2xl px-4 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 text-center shadow-xs transition-all"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveName}
+                  className="rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-4 py-2.5 text-sm transition-all shadow-xs cursor-pointer hover:scale-105"
+                >
+                  continue
+                </button>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={handleSkipName}
+                  className="text-[11px] text-stone-400 hover:text-stone-600 underline cursor-pointer"
+                >
+                  or continue without a name
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Workflow 1: First-time user -> Step 3: "welcome [name]" -> "quote of the day" button */}
+          {step === "first_welcomed" && (
+            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <button
+                type="button"
+                onClick={() => setStep("quote_revealed")}
+                className="inline-flex items-center gap-2 rounded-2xl bg-white/55 hover:bg-white/80 backdrop-blur-md text-amber-950 border border-white/80 px-6 py-3 text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-[0_4px_16px_0_rgba(28,25,23,0.04)] cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-500 fill-amber-300" />
+                <span>quote of the day</span>
+              </button>
+            </div>
+          )}
+
+          {/* Workflow 2: Returning user -> Step 1: "welcome back [name]" -> "quote of the day" button */}
+          {step === "returning_welcome" && !isTyping && (
+            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-3">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setStep("quote_revealed")}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white/55 hover:bg-white/80 backdrop-blur-md text-amber-950 border border-white/80 px-6 py-3 text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-[0_4px_16px_0_rgba(28,25,23,0.04)] cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-500 fill-amber-300" />
+                  <span>quote of the day</span>
+                </button>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNameInput(currentName)
+                    setStep("first_ask_name")
+                  }}
+                  className="text-[11px] text-stone-400 hover:text-stone-600 underline cursor-pointer"
+                >
+                  change name
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quote Revealed -> Frosted glass quote card + "let's begin" button */}
+          {step === "quote_revealed" && (
             <div className="space-y-5 animate-in fade-in zoom-in-95 duration-500 ease-out">
               {/* Daily Quote Card - Frosted Translucent Glass */}
               <div className="relative overflow-hidden rounded-3xl bg-white/35 backdrop-blur-xl border border-white/60 p-6 sm:p-7 text-left space-y-3.5 shadow-[0_8px_32px_0_rgba(28,25,23,0.06),inset_0_1px_1px_0_rgba(255,255,255,0.8)] transition-all duration-500">
@@ -251,13 +385,13 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
                 </div>
               </div>
 
-              {/* Step 4: Final Start Button */}
+              {/* Final Start Button */}
               <button
                 type="button"
                 onClick={onStart}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-8 py-3.5 shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer"
               >
-                <span>Let&apos;s begin</span>
+                <span>let&apos;s begin{currentName ? `, ${currentName}` : ""}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

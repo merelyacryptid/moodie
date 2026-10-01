@@ -9,8 +9,10 @@ import { MockDataNotice } from "@/components/MockDataNotice"
 import { MoodWaveChart } from "./MoodWaveChart"
 import { ActivityCharts } from "./ActivityCharts"
 import { Star, Flame, Trophy, Sparkles } from "lucide-react"
+import { useUserName } from "@/hooks/useUserName"
 
 export function DiscoveriesPage() {
+  const { name: userName } = useUserName()
   const entries = useLiveQuery(() => db.entries.toArray(), [])
 
   // If local db is empty, show realistic mock data with an honest notice
@@ -39,10 +41,14 @@ export function DiscoveriesPage() {
       <div className="text-center space-y-1">
         <div className="flex items-center justify-center gap-1.5">
           <Sparkles className="w-5 h-5 text-amber-400 fill-amber-400" />
-          <h1 className="text-2xl font-semibold text-stone-800">Discoveries</h1>
+          <h1 className="text-2xl font-semibold text-stone-800">
+            {userName ? `${userName}'s Discoveries` : "Discoveries"}
+          </h1>
         </div>
         <p className="text-xs text-stone-400">
-          Little patterns and connections noticed from your reflections
+          {userName
+            ? `Little patterns and connections noticed from your reflections, ${userName}`
+            : "Little patterns and connections noticed from your reflections"}
         </p>
       </div>
 

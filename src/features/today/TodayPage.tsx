@@ -16,6 +16,8 @@ import {
   importBackup,
 } from "@/lib/db"
 
+import { useUserName } from "@/hooks/useUserName"
+
 interface EntryData {
   id?: string
   date: string
@@ -84,6 +86,10 @@ function saveList(key: string, items: string[]) {
 type Tab = "mood" | "journal"
 
 export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}) {
+  const { name: userName, updateName } = useUserName()
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [nameEditInput, setNameEditInput] = useState("")
+
   const [date, setDate] = useState(getLocalDateString())
   const [entry, setEntry] = useState<EntryData>(defaultEntry(getLocalDateString()))
   const [drafts, setDrafts] = useState<Record<string, EntryData>>({})
@@ -324,10 +330,10 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <div className="text-6xl mb-4">✨</div>
         <h2 className="text-2xl font-semibold text-stone-700 mb-2">Another star added.</h2>
-        <p className="text-stone-500">See you tomorrow.</p>
+        <p className="text-stone-500">See you tomorrow{userName ? `, ${userName}` : ""}.</p>
         <button
           onClick={() => setSaved(false)}
-          className="mt-4 text-sm text-stone-400 underline underline-offset-2 hover:text-stone-600"
+          className="mt-4 text-sm text-stone-400 underline underline-offset-2 hover:text-stone-600 cursor-pointer"
         >
           {date === getLocalDateString() ? "Log another time of day" : "Continue"}
         </button>
@@ -344,8 +350,58 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
 
   const isToday = date === getLocalDateString()
 
+  const timeGreeting =
+    entry.timeOfDay === "morning"
+      ? "Good morning"
+      : entry.timeOfDay === "afternoon"
+      ? "Good afternoon"
+      : "Good evening"
+
   return (
     <div className="space-y-6">
+      {/* Inline Name Edit Modal */}
+      {isEditingName && (
+        <div className="fixed inset-0 z-50 bg-black/25 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-xl border border-stone-100 text-center animate-in zoom-in-95 duration-200">
+            <h3 className="font-semibold text-stone-800 text-base">What should I call you?</h3>
+            <input
+              type="text"
+              value={nameEditInput}
+              onChange={(e) => setNameEditInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  updateName(nameEditInput)
+                  setIsEditingName(false)
+                }
+              }}
+              placeholder="your name or nickname"
+              maxLength={24}
+              className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-2.5 text-sm text-stone-800 text-center focus:outline-none focus:ring-2 focus:ring-amber-300"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-center">
+              <button
+                type="button"
+                onClick={() => setIsEditingName(false)}
+                className="px-4 py-2 rounded-xl text-xs text-stone-500 hover:bg-stone-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateName(nameEditInput)
+                  setIsEditingName(false)
+                }}
+                className="px-5 py-2 rounded-xl text-xs bg-yellow-400 hover:bg-yellow-300 font-semibold text-stone-900 shadow-xs cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center">
         <div className="flex items-center justify-center gap-3">
           <button onClick={() => changeDate(-1)} className="p-1 text-stone-400 hover:text-yellow-500 transition-colors">
@@ -365,12 +421,25 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           </button>
         )}
         <div className="flex items-center justify-center gap-2 mt-1">
-          <h1 className="text-2xl font-semibold text-stone-700">Today's Reflection</h1>
+          <h1 className="text-2xl font-semibold text-stone-700">
+            {userName ? `${timeGreeting}, ${userName}` : "Today's Reflection"}
+          </h1>
+          <button
+            type="button"
+            onClick={() => {
+              setNameEditInput(userName)
+              setIsEditingName(true)
+            }}
+            title={userName ? `Rename (${userName})` : "Set your name"}
+            className="text-stone-300 hover:text-stone-500 text-xs transition-colors p-1 cursor-pointer"
+          >
+            ✎
+          </button>
           {onShowWelcome && (
             <button
               onClick={onShowWelcome}
               title="Open the crowd"
-              className="text-base text-stone-400 hover:text-stone-700 transition-transform hover:scale-110 p-0.5"
+              className="text-base text-stone-400 hover:text-stone-700 transition-transform hover:scale-110 p-0.5 cursor-pointer"
             >
               👀
             </button>

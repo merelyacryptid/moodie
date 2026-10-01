@@ -5,12 +5,14 @@ import { useLiveQuery } from "dexie-react-hooks"
 import { db, toggleHabitCompletion, DEFAULT_HABITS, ensureHabitsSeeded } from "@/lib/db"
 import type { Habit as DbHabit, HabitCompletion as DbHabitCompletion } from "@/types"
 import { HABIT_TO_ACTIVITIES } from "@/types"
+import { useUserName } from "@/hooks/useUserName"
 
 interface HabitWithCompletions extends DbHabit {
   completions: DbHabitCompletion[]
 }
 
 export function HabitsPage() {
+  const { name: userName } = useUserName()
   const now = new Date()
   const [month] = useState(now.getMonth() + 1)
   const [year] = useState(now.getFullYear())
@@ -151,7 +153,14 @@ export function HabitsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-stone-700 text-center">Habits</h1>
+      <div className="text-center space-y-0.5">
+        <h1 className="text-2xl font-semibold text-stone-700">
+          {userName ? `${userName}'s Habits` : "Habits"}
+        </h1>
+        <p className="text-xs text-stone-400">
+          Small everyday steps that seem to help
+        </p>
+      </div>
 
       <div className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100 overflow-x-auto">
         <table className="w-full text-xs">
