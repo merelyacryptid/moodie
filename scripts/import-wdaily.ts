@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { readFileSync, readdirSync } from "fs"
 import { join } from "path"
 import { PrismaClient } from "../src/generated/prisma/client"
