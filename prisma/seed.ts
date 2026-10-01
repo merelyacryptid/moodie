@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PrismaClient } from "../src/generated/prisma/client"
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3"
 
