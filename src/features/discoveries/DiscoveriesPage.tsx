@@ -4,6 +4,8 @@ import { useMemo } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/lib/db"
 import { calculateDiscoveries, type EnhancedDiscoveriesData } from "@/lib/discoveries"
+import { generateMockEntries } from "@/lib/mockData"
+import { MockDataNotice } from "@/components/MockDataNotice"
 import { MoodWaveChart } from "./MoodWaveChart"
 import { ActivityCharts } from "./ActivityCharts"
 import { Star, Flame, Trophy, Sparkles } from "lucide-react"
@@ -11,10 +13,14 @@ import { Star, Flame, Trophy, Sparkles } from "lucide-react"
 export function DiscoveriesPage() {
   const entries = useLiveQuery(() => db.entries.toArray(), [])
 
+  // If local db is empty, show realistic mock data with an honest notice
+  const isMock = Boolean(entries && entries.length === 0)
+  const activeEntries = isMock ? generateMockEntries() : (entries || [])
+
   const data: EnhancedDiscoveriesData | null = useMemo(() => {
     if (entries === undefined) return null
-    return calculateDiscoveries(entries)
-  }, [entries])
+    return calculateDiscoveries(activeEntries)
+  }, [entries, activeEntries])
 
   if (!data) {
     return (
@@ -24,20 +30,11 @@ export function DiscoveriesPage() {
     )
   }
 
-  if (data.empty || data.totalReflections === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-center space-y-3">
-        <div className="text-5xl animate-bounce">🌱</div>
-        <h2 className="text-xl font-semibold text-stone-700">Keep exploring</h2>
-        <p className="text-stone-400 max-w-xs text-sm">
-          More reflections help reveal new patterns and gentle discoveries about your days.
-        </p>
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-4 pb-6">
+      {/* Sample Preview Notice Banner if user hasn't logged real entries yet */}
+      {isMock && <MockDataNotice />}
+
       {/* Page Title & Subtitle */}
       <div className="text-center space-y-1">
         <div className="flex items-center justify-center gap-1.5">

@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable, type Table } from "dexie"
 import type { Entry, Habit, HabitCompletion } from "@/types"
-import { ACTIVITY_TO_HABIT } from "@/types"
+import { ACTIVITY_TO_HABIT, HABIT_TO_ACTIVITIES } from "@/types"
 
 export const db = new Dexie("moodie") as Dexie & {
   entries: EntityTable<Entry, "id">
@@ -16,7 +16,7 @@ db.version(1).stores({
 })
 
 // Default habits on first populate in the browser
-const DEFAULT_HABITS: Habit[] = [
+export const DEFAULT_HABITS: Habit[] = [
   { id: "Reading", name: "Reading", icon: "📖", color: "#fde68a" },
   { id: "CP", name: "CP", icon: "💻", color: "#bbf7d0" },
   { id: "Development", name: "Development", icon: "⚡", color: "#bfdbfe" },
@@ -25,6 +25,18 @@ const DEFAULT_HABITS: Habit[] = [
   { id: "Go Outside", name: "Go Outside", icon: "🌿", color: "#d9f99d" },
   { id: "Movie", name: "Movie", icon: "🎬", color: "#fecaca" },
 ]
+
+// Ensure habits exist in IndexedDB (handles fresh browsers or upgraded databases)
+export async function ensureHabitsSeeded(): Promise<Habit[]> {
+  try {
+    const existing = await db.habits.toArray()
+    if (existing.length > 0) return existing
+    await db.habits.bulkAdd(DEFAULT_HABITS)
+    return await db.habits.toArray()
+  } catch {
+    return DEFAULT_HABITS
+  }
+}
 
 // Seed default habits on first launch in the browser
 db.on("populate", () => {
@@ -64,35 +76,69 @@ export async function saveEntry(
   await db.entries.put(fullEntry)
 
   // Automatically mark habit completions based on chosen activities
-  const allHabits = await db.habits.toArray()
+  const allHabits = await ensureHabitsSeeded()
   const habitMap = new Map(allHabits.map((h) => [h.name.toLowerCase(), h.id]))
 
   for (const activity of fullEntry.activities) {
     const habitName = ACTIVITY_TO_HABIT[activity] || activity
     const habitId = habitMap.get(habitName.toLowerCase()) || habitName
 
-    if (habitMap.has(habitName.toLowerCase())) {
-      await db.completions.put({
-        habitId,
-        date: fullEntry.date,
-        completed: true,
-      })
-    }
+    await db.completions.put({
+      habitId,
+      date: fullEntry.date,
+      completed: true,
+    })
   }
 
   return fullEntry
 }
 
-// Toggle habit completion on a given date
+// Real-time synchronization when selecting activities
+export async function autoSyncHabit(
+  activityOrHabit: string,
+  date: string,
+  completed: boolean
+): Promise<void> {
+  const allHabits = await ensureHabitsSeeded()
+  const habitName = ACTIVITY_TO_HABIT[activityOrHabit] || activityOrHabit
+  const habit = allHabits.find((h) => h.name.toLowerCase() === habitName.toLowerCase())
+  const habitId = habit?.id || habitName
+
+  if (completed) {
+    await db.completions.put({ habitId, date, completed: true })
+  } else {
+    // Check if other reflections on this date also have this habit
+    const entriesOnDate = await db.entries.where("date").equals(date).toArray()
+    const matchingActivities = (HABIT_TO_ACTIVITIES[habitName] || [habitName]).map((a) => a.toLowerCase())
+    const stillActive = entriesOnDate.some((e) =>
+      Array.isArray(e.activities) && e.activities.some((a) => matchingActivities.includes(a.toLowerCase()))
+    )
+
+    if (stillActive) {
+      await db.completions.put({ habitId, date, completed: false })
+    } else {
+      await db.completions.delete([habitId, date])
+    }
+  }
+}
+
+// Toggle habit completion on a given date (with override support)
 export async function toggleHabitCompletion(
   habitId: string,
   date: string,
   completed: boolean
 ): Promise<void> {
+  const allHabits = await ensureHabitsSeeded()
+  const habit =
+    allHabits.find((h) => h.id === habitId) ||
+    allHabits.find((h) => h.name.toLowerCase() === habitId.toLowerCase())
+  const targetId = habit?.id || habitId
+
   if (completed) {
-    await db.completions.put({ habitId, date, completed: true })
+    await db.completions.put({ habitId: targetId, date, completed: true })
   } else {
-    await db.completions.delete([habitId, date])
+    // Explicitly record false so user can override any auto-completed activity from reflections
+    await db.completions.put({ habitId: targetId, date, completed: false })
   }
 }
 

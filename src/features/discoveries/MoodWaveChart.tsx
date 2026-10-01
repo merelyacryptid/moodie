@@ -34,6 +34,43 @@ function createSmoothPath(points: { x: number; y: number }[]): string {
   return path
 }
 
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
+const FULL_MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+]
+
+function formatFriendlyDate(dateStr: string): string {
+  const parts = dateStr.split("-")
+  if (parts.length < 3) return dateStr
+  const monthIdx = parseInt(parts[1], 10) - 1
+  const day = parseInt(parts[2], 10)
+  const monthName = MONTH_NAMES[monthIdx] || parts[1]
+  return `${monthName} ${day}`
+}
+
+function formatFullDate(dateStr: string): string {
+  const parts = dateStr.split("-")
+  if (parts.length < 3) return dateStr
+  const year = parts[0]
+  const monthIdx = parseInt(parts[1], 10) - 1
+  const day = parseInt(parts[2], 10)
+  const fullMonth = FULL_MONTH_NAMES[monthIdx] || parts[1]
+  return `${fullMonth} ${day}, ${year}`
+}
+
+interface MonthSpan {
+  key: string
+  name: string
+  fullName: string
+  displayName: string
+  x: number
+}
+
 export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
   const [animated, setAnimated] = useState(false)
   const [activePoint, setActivePoint] = useState<TimelinePoint | null>(null)
@@ -88,6 +125,105 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
     return { points: pts, linePath: lPath, areaPath: aPath }
   }, [timeline, plotWidth, plotHeight, pad.left, pad.top])
 
+  // Month-based groupings for X-axis labels
+  const monthSpans = useMemo(() => {
+    if (points.length === 0) return []
+
+    const groups: {
+      key: string
+      name: string
+      fullName: string
+      year: number
+      minX: number
+      maxX: number
+      count: number
+    }[] = []
+
+    let currentGroup: (typeof groups)[0] | null = null
+
+    for (const p of points) {
+      const parts = p.entry.date.split("-")
+      const year = parseInt(parts[0], 10)
+      const monthNum = parseInt(parts[1], 10)
+      const monthIdx = (monthNum - 1 + 12) % 12
+      const key = `${year}-${monthNum}`
+
+      if (!currentGroup || currentGroup.key !== key) {
+        currentGroup = {
+          key,
+          name: MONTH_NAMES[monthIdx],
+          fullName: FULL_MONTH_NAMES[monthIdx],
+          year,
+          minX: p.x,
+          maxX: p.x,
+          count: 1,
+        }
+        groups.push(currentGroup)
+      } else {
+        currentGroup.maxX = Math.max(currentGroup.maxX, p.x)
+        currentGroup.count++
+      }
+    }
+
+    const uniqueYears = new Set(groups.map((g) => g.year))
+    const hasMultipleYears = uniqueYears.size > 1
+
+    // If only 1 month exists across all data
+    if (groups.length === 1) {
+      const g = groups[0]
+      const displayName = hasMultipleYears
+        ? `${g.fullName} '${String(g.year).slice(-2)}`
+        : g.fullName
+
+      return [
+        {
+          key: g.key,
+          name: g.name,
+          fullName: g.fullName,
+          displayName,
+          x: pad.left + plotWidth / 2,
+        },
+      ]
+    }
+
+    // Multiple months exist
+    const spans: MonthSpan[] = groups.map((g) => {
+      const spanWidth = g.maxX - g.minX
+      let displayName = groups.length <= 3 && spanWidth > 80 ? g.fullName : g.name
+      if (hasMultipleYears) {
+        displayName += ` '${String(g.year).slice(-2)}`
+      }
+
+      const rawCenter = (g.minX + g.maxX) / 2
+      const minBound = pad.left + 22
+      const maxBound = width - pad.right - 22
+      const x = Math.max(minBound, Math.min(maxBound, rawCenter))
+
+      return {
+        key: g.key,
+        name: g.name,
+        fullName: g.fullName,
+        displayName,
+        x,
+      }
+    })
+
+    // Avoid overlapping text if two consecutive month labels are too close
+    for (let i = 1; i < spans.length; i++) {
+      const prev = spans[i - 1]
+      const curr = spans[i]
+      if (curr.x - prev.x < 48) {
+        prev.displayName = prev.name
+        curr.displayName = curr.name
+        if (curr.x - prev.x < 36) {
+          curr.x = Math.min(width - pad.right - 18, prev.x + 36)
+        }
+      }
+    }
+
+    return spans
+  }, [points, pad.left, pad.right, plotWidth, width])
+
   if (timeline.length < 2) {
     return (
       <div className="bg-white rounded-3xl p-6 shadow-xs border border-stone-100 flex flex-col items-center justify-center text-center py-10 space-y-2">
@@ -123,7 +259,7 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
           <div className="leading-tight">
             <span className="font-bold text-amber-900">{currentDisplayPoint.mood} / 5</span>
             <span className="text-[10px] text-amber-700/80 ml-1.5 capitalize">
-              {currentDisplayPoint.date.slice(5)} ({currentDisplayPoint.timeOfDay})
+              {formatFriendlyDate(currentDisplayPoint.date)} ({currentDisplayPoint.timeOfDay})
             </span>
           </div>
         </div>
@@ -212,31 +348,20 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
             }}
           />
 
-          {/* Date Labels on X Axis */}
-          {points.map((p, i) => {
-            // Show date labels selectively if there are many points
-            const shouldShowDate =
-              points.length <= 8 ||
-              i === 0 ||
-              i === points.length - 1 ||
-              i % Math.ceil(points.length / 5) === 0
+          {/* Month Labels on X Axis */}
+          {monthSpans.map((span) => (
+            <text
+              key={span.key}
+              x={span.x}
+              y={height - 12}
+              textAnchor="middle"
+              className="text-[10px] fill-stone-400 font-medium tracking-wide select-none"
+            >
+              {span.displayName}
+            </text>
+          ))}
 
-            if (!shouldShowDate) return null
-            const label = p.entry.date.slice(5) // MM-DD
-            return (
-              <text
-                key={`label-${i}`}
-                x={p.x}
-                y={height - 12}
-                textAnchor="middle"
-                className="text-[9px] fill-stone-400 font-medium select-none"
-              >
-                {label}
-              </text>
-            )
-          })}
-
-          {/* Interactive Interactive Dots on each reflection */}
+          {/* Interactive Dots on each reflection */}
           {points.map((p, i) => {
             const isHovered = activeIndex === i
             // Color based on mood height
@@ -268,7 +393,7 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
                   <circle
                     cx={p.x}
                     cy={p.y}
-                    r="8"
+                    r={8}
                     fill={dotColor}
                     fillOpacity="0.25"
                     className="animate-ping"
@@ -296,7 +421,7 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
         <div className="bg-stone-50/70 border border-stone-100 rounded-2xl p-2.5 flex items-center justify-between text-xs text-stone-600 gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="font-medium text-stone-700 capitalize">
-              {currentDisplayPoint.date} • {currentDisplayPoint.timeOfDay}
+              {formatFullDate(currentDisplayPoint.date)} • {currentDisplayPoint.timeOfDay}
             </span>
             {currentDisplayPoint.activities && currentDisplayPoint.activities.length > 0 && (
               <span className="text-[11px] text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded-full">

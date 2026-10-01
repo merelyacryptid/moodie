@@ -10,12 +10,18 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
-    const seen = localStorage.getItem("moodie-welcome-seen")
-    if (seen) setShowWelcome(false)
+    // Use sessionStorage so the welcome page greets you on every new app visit/session,
+    // but stays dismissed throughout your use in this session.
+    try {
+      const sessionEntered = sessionStorage.getItem("moodie-session-entered")
+      if (sessionEntered) setShowWelcome(false)
+    } catch {}
   }, [])
 
   const handleStart = () => {
-    localStorage.setItem("moodie-welcome-seen", "true")
+    try {
+      sessionStorage.setItem("moodie-session-entered", "true")
+    } catch {}
     setShowWelcome(false)
   }
 

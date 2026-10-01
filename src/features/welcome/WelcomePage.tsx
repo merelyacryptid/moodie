@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { getDailyQuote } from "@/lib/quotes"
+import { Sparkles, ArrowRight } from "lucide-react"
 
 type Point = { x: number; y: number }
 
@@ -13,7 +15,7 @@ type Head = {
   delay: number
 }
 
-const CENTER_CLEAR_RADIUS = 180
+const CENTER_FADE_RADIUS = 240
 
 function buildHeads(width: number, height: number): Head[] {
   const heads: Head[] = []
@@ -26,11 +28,6 @@ function buildHeads(width: number, height: number): Head[] {
     for (let col = 0; col <= cols; col += 1) {
       const x = col * stepX + (row % 2 === 0 ? 0 : stepX * 0.15)
       const y = row * stepY
-      const dx = x - width / 2
-      const dy = y - height / 2
-      const distanceFromCenter = Math.sqrt(dx * dx + dy * dy)
-
-      if (distanceFromCenter < CENTER_CLEAR_RADIUS) continue
 
       heads.push({
         id: `${row}-${col}`,
@@ -46,24 +43,38 @@ function buildHeads(width: number, height: number): Head[] {
   return heads
 }
 
-function HeadNode({ head, mouse, viewport }: { head: Head; mouse: Point; viewport: { width: number; height: number } }) {
+function HeadNode({
+  head,
+  mouse,
+  viewport,
+}: {
+  head: Head
+  mouse: Point
+  viewport: { width: number; height: number }
+}) {
   const dx = mouse.x - head.x
   const dy = mouse.y - head.y
   const distance = Math.sqrt(dx * dx + dy * dy)
   const angle = Math.atan2(dy, dx)
 
-  // Responsive head shift
   const maxHeadShift = Math.max(6, head.size * 0.14)
   const headShift = Math.min(distance / 16, maxHeadShift)
   const moveX = Math.cos(angle) * headShift * 0.35
   const moveY = Math.sin(angle) * headShift * 0.35
 
-  // Snappy, expressive pupil shift directly following cursor
   const maxPupilShift = Math.max(6, head.size * 0.16)
   const pupilShift = Math.min(distance / 9, maxPupilShift)
   const pupilX = Math.cos(angle) * pupilShift
   const pupilY = Math.sin(angle) * pupilShift
   const scale = 1 + Math.min(distance / Math.max(viewport.width, viewport.height), 0.08) * 0.08
+
+  // Gentle center falloff so text in center stays completely readable while heads seamlessly span the background
+  const distFromCenter = Math.sqrt(
+    Math.pow(head.x - viewport.width / 2, 2) + Math.pow(head.y - viewport.height * 0.44, 2)
+  )
+  const centerT = Math.min(1, Math.max(0, distFromCenter / CENTER_FADE_RADIUS))
+  // Opacity ranges from 0.45 near center to 1.0 towards edges
+  const opacity = 0.45 + centerT * 0.55
 
   return (
     <div
@@ -73,12 +84,13 @@ function HeadNode({ head, mouse, viewport }: { head: Head; mouse: Point; viewpor
         top: `${head.y}px`,
         width: `${head.size}px`,
         height: `${head.size}px`,
+        opacity,
         transform: `translate(-50%, -50%) translate(${moveX}px, ${moveY}px) scale(${scale})`,
-        transition: "transform 80ms ease-out",
+        transition: "transform 80ms ease-out, opacity 400ms ease",
       }}
     >
       <div
-        className="relative h-full w-full rounded-full border-[3px] border-stone-900 bg-transparent shadow-[0_0_0_1px_rgba(255,255,255,0.7)]"
+        className="relative h-full w-full rounded-full border-[2.5px] border-stone-850 bg-transparent"
         style={{
           boxShadow: `0 0 0 1px rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.7)`,
         }}
@@ -88,7 +100,6 @@ function HeadNode({ head, mouse, viewport }: { head: Head; mouse: Point; viewpor
           style={{
             opacity: 0.95 - head.sway * 0.15,
             transform: `translate(${pupilX}px, ${pupilY}px)`,
-            // Highly reactive pupil movement for the homepage crowd
             transition: "transform 40ms cubic-bezier(0, 0, 0.2, 1)",
           }}
         />
@@ -97,7 +108,6 @@ function HeadNode({ head, mouse, viewport }: { head: Head; mouse: Point; viewpor
           style={{
             opacity: 0.95 - head.sway * 0.15,
             transform: `translate(${pupilX}px, ${pupilY}px)`,
-            // Highly reactive pupil movement for the homepage crowd
             transition: "transform 40ms cubic-bezier(0, 0, 0.2, 1)",
           }}
         />
@@ -107,20 +117,39 @@ function HeadNode({ head, mouse, viewport }: { head: Head; mouse: Point; viewpor
 }
 
 export function WelcomePage({ onStart }: { onStart: () => void }) {
-  const [showTitle, setShowTitle] = useState(false)
-  const [showSubtext, setShowSubtext] = useState(false)
   const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 })
   const [viewport, setViewport] = useState({ width: 1024, height: 768 })
 
+  // Sequential Experience States: "typing" -> "readyForQuote" -> "quoteRevealed"
+  const fullText = "Hello there"
+  const [typedText, setTypedText] = useState("")
+  const [isTyping, setIsTyping] = useState(true)
+  const [step, setStep] = useState<"typing" | "readyForQuote" | "quoteRevealed">("typing")
+  const quote = useMemo(() => getDailyQuote(), [])
+
+  // Step 1: Typewriter effect begins shortly after eyes appear
   useEffect(() => {
-    const t1 = setTimeout(() => setShowTitle(true), 300)
-    const t2 = setTimeout(() => setShowSubtext(true), 1800)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-    }
+    let index = 0
+    const delayTimer = setTimeout(() => {
+      const interval = setInterval(() => {
+        index++
+        setTypedText(fullText.slice(0, index))
+        if (index >= fullText.length) {
+          clearInterval(interval)
+          setIsTyping(false)
+          setTimeout(() => {
+            setStep("readyForQuote")
+          }, 450)
+        }
+      }, 75)
+
+      return () => clearInterval(interval)
+    }, 380)
+
+    return () => clearTimeout(delayTimer)
   }, [])
 
+  // Viewport and mouse movement tracking
   useEffect(() => {
     const updateViewport = () => {
       setViewport({ width: window.innerWidth, height: window.innerHeight })
@@ -152,46 +181,87 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
   }, [viewport.width, viewport.height])
 
   return (
-    <div
-      onClick={onStart}
-      className="fixed inset-0 z-[100] cursor-pointer overflow-hidden bg-[#fdf7ec]"
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.8)_0%,rgba(253,247,236,0.35)_36%,rgba(253,247,236,1)_72%)]" />
+    <div className="fixed inset-0 z-[100] overflow-hidden bg-[#fdf7ec]">
+      {/* Background radial gradient to keep ambient warmth soft and balanced */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.35)_0%,rgba(253,247,236,0.3)_50%,rgba(253,247,236,0.85)_100%)]" />
 
-      <div className="absolute inset-0">
+      {/* Eyes Crowd Background */}
+      <div className="absolute inset-0 pointer-events-none">
         {heads.map((head) => (
           <HeadNode key={head.id} head={head} mouse={mousePos} viewport={viewport} />
         ))}
       </div>
 
-      <div className="relative z-10 flex h-full items-center justify-center px-6 text-center">
-        <div className="max-w-xl">
-          <h1
-            className={`font-display text-5xl text-stone-900 transition-all duration-[1200ms] ease-out md:text-6xl ${
-              showTitle ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-            }`}
-          >
-            Hi there, welcome
-          </h1>
+      {/* Interactive Content Area - Positioned towards the center vertically, locked constant */}
+      <div className="relative z-10 flex h-full flex-col items-center justify-start pt-[25vh] sm:pt-[29vh] px-6 text-center">
+        <div className="max-w-md w-full space-y-6">
+          {/* Step 1: Self-typing Title */}
+          <div className="space-y-2 select-none">
+            <h1 className="font-display text-4xl sm:text-5xl text-stone-900 tracking-tight min-h-[52px] sm:min-h-[60px] flex items-center justify-center">
+              <span>{typedText}</span>
+              {isTyping && (
+                <span className="inline-block w-1 h-7 sm:h-9 bg-amber-400 ml-1.5 animate-pulse rounded-full" />
+              )}
+            </h1>
 
-          <p
-            className={`mx-auto mt-5 max-w-md text-sm leading-6 text-stone-600 transition-all duration-1000 ${
-              showSubtext ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            Click anywhere to begin. The crowd is watching.
-          </p>
+            <p
+              className={`text-xs sm:text-sm text-stone-500 font-medium tracking-wide transition-opacity duration-700 ${
+                typedText.length >= 2 ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              a gentle reflection companion
+            </p>
+          </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onStart()
-            }}
-            className="mt-10 inline-flex items-center justify-center border-2 border-stone-900 bg-white px-6 py-3 font-medium text-stone-900 shadow-[4px_4px_0_0_#1c1917] transition-transform duration-200 hover:-translate-x-0.5 hover:-translate-y-0.5"
-          >
-            Start
-          </button>
+          {/* Step 2: "Read today's quote" button */}
+          {step === "readyForQuote" && (
+            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
+              <button
+                type="button"
+                onClick={() => setStep("quoteRevealed")}
+                className="inline-flex items-center gap-2 rounded-2xl bg-white/45 hover:bg-white/70 backdrop-blur-md text-amber-950 border border-white/70 px-5 py-2.5 text-sm font-medium transition-all duration-200 hover:scale-105 shadow-[0_4px_16px_0_rgba(28,25,23,0.04)] cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-500 fill-amber-300" />
+                <span>Read today&apos;s quote</span>
+              </button>
+            </div>
+          )}
+
+          {/* Step 3: Translucent Glass Quote Card & Final Start Button */}
+          {step === "quoteRevealed" && (
+            <div className="space-y-5 animate-in fade-in zoom-in-95 duration-500 ease-out">
+              {/* Daily Quote Card - Frosted Translucent Glass */}
+              <div className="relative overflow-hidden rounded-3xl bg-white/35 backdrop-blur-xl border border-white/60 p-6 sm:p-7 text-left space-y-3.5 shadow-[0_8px_32px_0_rgba(28,25,23,0.06),inset_0_1px_1px_0_rgba(255,255,255,0.8)] transition-all duration-500">
+                {/* Subtle glass reflection highlight */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/35 via-white/5 to-transparent" />
+
+                <div className="relative z-10 space-y-3">
+                  <span className="text-3xl text-amber-500/90 font-serif leading-none block select-none">“</span>
+                  <p className="text-stone-800 text-base sm:text-lg leading-relaxed italic font-serif -mt-2">
+                    {quote.quote}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-stone-500 pt-3 border-t border-stone-900/10">
+                    <span className="font-medium text-stone-600">— {quote.source}</span>
+                    {quote.tag && (
+                      <span className="bg-amber-100/60 text-amber-800/90 text-[10px] px-2.5 py-0.5 rounded-full font-medium border border-amber-200/50 backdrop-blur-xs">
+                        {quote.tag}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 4: Final Start Button */}
+              <button
+                type="button"
+                onClick={onStart}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-8 py-3.5 shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer"
+              >
+                <span>Let&apos;s begin</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -45,6 +45,16 @@ export const ACTIVITY_TO_HABIT: Record<string, string> = {
   Coding: "Development",
 }
 
+export const HABIT_TO_ACTIVITIES: Record<string, string[]> = {
+  Reading: ["Reading"],
+  CP: ["Competitive Programming", "CP"],
+  Development: ["Development", "Coding"],
+  Study: ["Study"],
+  Exercise: ["Exercise", "Walking", "Running", "Gym", "Yoga"],
+  "Go Outside": ["Nature", "Go Outside"],
+  Movie: ["Movie", "TV"],
+}
+
 export function moodToEmoji(mood: number): string {
   const rounded = Math.min(5, Math.max(1, Math.round(mood)))
   const map: Record<number, string> = {

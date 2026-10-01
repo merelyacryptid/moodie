@@ -8,6 +8,8 @@ import { StarRating } from "@/components/StarRating"
 import { moodToEmoji, type Entry } from "@/types"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { db } from "@/lib/db"
+import { generateMockEntries } from "@/lib/mockData"
+import { MockDataNotice } from "@/components/MockDataNotice"
 
 const TIME_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2 }
 
@@ -61,7 +63,10 @@ export function CalendarPage() {
 
   // Reactively query all entries from local IndexedDB
   const liveEntries = useLiveQuery(() => db.entries.toArray(), [])
-  const allEntries = liveEntries || []
+  const isMock = Boolean(liveEntries && liveEntries.length === 0)
+  const allEntries = useMemo(() => {
+    return isMock ? generateMockEntries() : (liveEntries || [])
+  }, [isMock, liveEntries])
 
   const daysInMonth = new Date(year, month, 0).getDate()
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
@@ -115,6 +120,7 @@ export function CalendarPage() {
 
   return (
     <div className="space-y-4">
+      {isMock && <MockDataNotice />}
       <h1 className="font-display text-2xl text-stone-700 text-center">Calendar</h1>
 
       <div className="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm border border-stone-100">

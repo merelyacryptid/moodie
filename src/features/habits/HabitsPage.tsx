@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
-import { db, toggleHabitCompletion } from "@/lib/db"
+import { db, toggleHabitCompletion, DEFAULT_HABITS, ensureHabitsSeeded } from "@/lib/db"
 import type { Habit as DbHabit, HabitCompletion as DbHabitCompletion } from "@/types"
+import { HABIT_TO_ACTIVITIES } from "@/types"
 
 interface HabitWithCompletions extends DbHabit {
   completions: DbHabitCompletion[]
@@ -14,16 +15,79 @@ export function HabitsPage() {
   const [month] = useState(now.getMonth() + 1)
   const [year] = useState(now.getFullYear())
 
-  // Query live local habits and completions from IndexedDB
+  // Ensure habits table is seeded
+  useEffect(() => {
+    ensureHabitsSeeded().catch(() => {})
+  }, [])
+
+  // Query live local habits, completions, and entries from IndexedDB
   const liveHabits = useLiveQuery(() => db.habits.toArray(), []) || []
   const liveCompletions = useLiveQuery(() => db.completions.toArray(), []) || []
+  const liveEntries = useLiveQuery(() => db.entries.toArray(), []) || []
+
+  const effectiveHabits = liveHabits.length > 0 ? liveHabits : DEFAULT_HABITS
 
   const habits: HabitWithCompletions[] = useMemo(() => {
-    return liveHabits.map((h) => ({
-      ...h,
-      completions: liveCompletions.filter((c) => c.habitId === h.id && c.completed !== false),
-    }))
-  }, [liveHabits, liveCompletions])
+    // Map entries by date for fast lookup of tagged activities
+    const activitiesByDate = new Map<string, Set<string>>()
+    for (const e of liveEntries) {
+      if (!activitiesByDate.has(e.date)) {
+        activitiesByDate.set(e.date, new Set())
+      }
+      const set = activitiesByDate.get(e.date)!
+      if (Array.isArray(e.activities)) {
+        for (const act of e.activities) {
+          const actName = typeof act === "string" ? act : (act as any).activity?.name
+          if (actName) set.add(actName.toLowerCase())
+        }
+      }
+    }
+
+    return effectiveHabits.map((h) => {
+      const completedDates = new Set<string>()
+
+      // 1. Auto-complete habit if matching activity was logged in today's (or any day's) reflections
+      const matchingActivities = (HABIT_TO_ACTIVITIES[h.name] || [h.name]).map((a) =>
+        a.toLowerCase()
+      )
+
+      for (const [dateStr, acts] of activitiesByDate.entries()) {
+        const hasMatchingActivity = matchingActivities.some((a) => acts.has(a))
+        if (hasMatchingActivity) {
+          completedDates.add(dateStr)
+        }
+      }
+
+      // 2. Layer explicit completions from db.completions (matching by habit ID or name)
+      for (const c of liveCompletions) {
+        const isMatch =
+          c.habitId === h.id ||
+          c.habitId.toLowerCase() === h.name.toLowerCase()
+
+        if (isMatch) {
+          if (c.completed === false) {
+            // User manually untoggled
+            completedDates.delete(c.date)
+          } else {
+            // User or system toggled on
+            completedDates.add(c.date)
+          }
+        }
+      }
+
+      const completions: DbHabitCompletion[] = Array.from(completedDates).map((date) => ({
+        id: `${h.id}-${date}`,
+        habitId: h.id,
+        date,
+        completed: true,
+      }))
+
+      return {
+        ...h,
+        completions,
+      }
+    })
+  }, [effectiveHabits, liveCompletions, liveEntries])
 
   const daysInMonth = new Date(year, month, 0).getDate()
 

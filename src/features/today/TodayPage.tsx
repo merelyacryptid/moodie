@@ -9,6 +9,7 @@ import { getLocalDateString } from "@/lib/utils"
 import {
   db,
   saveEntry,
+  autoSyncHabit,
   migrateFromSQLiteIfEmpty,
   requestPersistentStorage,
   exportBackup,
@@ -161,12 +162,22 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   }, [])
 
   const toggleActivity = useCallback((name: string) => {
-    setEntry((prev) => ({
-      ...prev,
-      activityNames: prev.activityNames.includes(name)
-        ? prev.activityNames.filter((a) => a !== name)
-        : [...prev.activityNames, name],
-    }))
+    setEntry((prev) => {
+      const isAdding = !prev.activityNames.includes(name)
+      const nextActivities = isAdding
+        ? [...prev.activityNames, name]
+        : prev.activityNames.filter((a) => a !== name)
+
+      // Instantly sync habit completion in IndexedDB for immediate real-time update
+      autoSyncHabit(name, prev.date, isAdding).catch((err) => {
+        console.error("Auto habit sync error:", err)
+      })
+
+      return {
+        ...prev,
+        activityNames: nextActivities,
+      }
+    })
   }, [])
 
   const switchTimeOfDay = (tod: string) => {
