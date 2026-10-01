@@ -51,26 +51,30 @@ function HeadNode({ head, mouse, viewport }: { head: Head; mouse: Point; viewpor
   const dy = mouse.y - head.y
   const distance = Math.sqrt(dx * dx + dy * dy)
   const angle = Math.atan2(dy, dx)
-  const maxShift = Math.max(6, head.size * 0.12)
-  const shift = Math.min(distance / 22, maxShift)
-  const moveX = Math.cos(angle) * shift * 0.22
-  const moveY = Math.sin(angle) * shift * 0.22
-  const pupilShift = Math.min(distance / 12, head.size * 0.12)
+
+  // Responsive head shift
+  const maxHeadShift = Math.max(6, head.size * 0.14)
+  const headShift = Math.min(distance / 16, maxHeadShift)
+  const moveX = Math.cos(angle) * headShift * 0.35
+  const moveY = Math.sin(angle) * headShift * 0.35
+
+  // Snappy, expressive pupil shift directly following cursor
+  const maxPupilShift = Math.max(6, head.size * 0.16)
+  const pupilShift = Math.min(distance / 9, maxPupilShift)
   const pupilX = Math.cos(angle) * pupilShift
   const pupilY = Math.sin(angle) * pupilShift
   const scale = 1 + Math.min(distance / Math.max(viewport.width, viewport.height), 0.08) * 0.08
 
   return (
     <div
-      className="absolute select-none"
+      className="absolute select-none pointer-events-none"
       style={{
         left: `${head.x}px`,
         top: `${head.y}px`,
         width: `${head.size}px`,
         height: `${head.size}px`,
         transform: `translate(-50%, -50%) translate(${moveX}px, ${moveY}px) scale(${scale})`,
-        transition: "transform 160ms ease-out",
-        transitionDelay: `${head.delay}s`,
+        transition: "transform 80ms ease-out",
       }}
     >
       <div
@@ -80,19 +84,21 @@ function HeadNode({ head, mouse, viewport }: { head: Head; mouse: Point; viewpor
         }}
       >
         <span
-          className="absolute left-[23%] top-[27%] h-[4px] w-[4px] rounded-full bg-stone-900"
+          className="absolute left-[23%] top-[27%] h-[4.5px] w-[4.5px] rounded-full bg-stone-900"
           style={{
-            opacity: 0.9 - head.sway * 0.2,
-            transform: `translate(${pupilX * 0.45}px, ${pupilY * 0.45}px)`,
-            transition: "transform 120ms ease-out",
+            opacity: 0.95 - head.sway * 0.15,
+            transform: `translate(${pupilX}px, ${pupilY}px)`,
+            // Highly reactive pupil movement for the homepage crowd
+            transition: "transform 40ms cubic-bezier(0, 0, 0.2, 1)",
           }}
         />
         <span
-          className="absolute left-[45%] top-[27%] h-[4px] w-[4px] rounded-full bg-stone-900"
+          className="absolute left-[45%] top-[27%] h-[4.5px] w-[4.5px] rounded-full bg-stone-900"
           style={{
-            opacity: 0.9 - head.sway * 0.2,
-            transform: `translate(${pupilX * 0.45}px, ${pupilY * 0.45}px)`,
-            transition: "transform 120ms ease-out",
+            opacity: 0.95 - head.sway * 0.15,
+            transform: `translate(${pupilX}px, ${pupilY}px)`,
+            // Highly reactive pupil movement for the homepage crowd
+            transition: "transform 40ms cubic-bezier(0, 0, 0.2, 1)",
           }}
         />
       </div>
@@ -120,17 +126,23 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
       setViewport({ width: window.innerWidth, height: window.innerHeight })
     }
 
+    let rafId: number | null = null
     const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX, y: e.clientY })
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        setMousePos({ x: e.clientX, y: e.clientY })
+        rafId = null
+      })
     }
 
     updateViewport()
     window.addEventListener("resize", updateViewport)
-    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mousemove", handleMouseMove, { passive: true })
 
     return () => {
       window.removeEventListener("resize", updateViewport)
       window.removeEventListener("mousemove", handleMouseMove)
+      if (rafId !== null) cancelAnimationFrame(rafId)
     }
   }, [])
 

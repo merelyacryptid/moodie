@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Nunito, Fredoka } from "next/font/google"
 import "./globals.css"
 import { BottomNavigation } from "@/components/BottomNavigation"
+import { EyeBackground } from "@/components/EyeBackground"
 
 const nunito = Nunito({
   variable: "--font-body",
@@ -26,8 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${nunito.variable} ${fredoka.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col bg-[#fef9ef] text-stone-800">
-        <main className="flex-1 pb-20 max-w-lg mx-auto w-full px-4 pt-6">
+      <body className="relative min-h-full flex flex-col bg-[#fef9ef] text-stone-800">
+        <EyeBackground />
+        <main className="relative z-10 flex-1 pb-20 max-w-lg mx-auto w-full px-4 pt-6">
           {children}
         </main>
         <BottomNavigation />

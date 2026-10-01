@@ -504,3 +504,6 @@
  GET / 200 in 95ms (next.js: 13ms, application-code: 82ms)
  GET / 200 in 97ms (next.js: 13ms, application-code: 84ms)
  GET / 200 in 122ms (next.js: 8ms, application-code: 113ms)
+ GET / 200 in 3.5s (next.js: 2.2s, application-code: 1252ms)
+
+C:\Users\sunil\OneDrive\Desktop\Projects\moodie>

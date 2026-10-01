@@ -1,29 +1,13 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useLiveQuery } from "dexie-react-hooks"
 import { CalendarDay } from "@/components/CalendarDay"
 import { StarRating } from "@/components/StarRating"
-import { moodToEmoji } from "@/types"
+import { moodToEmoji, type Entry } from "@/types"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-
-interface EntryActivity {
-  activity: { name: string }
-}
-
-interface Entry {
-  id: string
-  date: string
-  timeOfDay: string
-  mood: number
-  energy: number
-  activityLevel: number
-  sleepHours: number
-  waterLevel: string
-  stress: number
-  note: string | null
-  activities: EntryActivity[]
-}
+import { db } from "@/lib/db"
 
 const TIME_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2 }
 
@@ -72,15 +56,12 @@ export function CalendarPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [allEntries, setAllEntries] = useState<Entry[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  useEffect(() => {
-    fetch(`/api/entries?month=${month}&year=${year}`)
-      .then((res) => res.json())
-      .then(setAllEntries)
-  }, [month, year])
+  // Reactively query all entries from local IndexedDB
+  const liveEntries = useLiveQuery(() => db.entries.toArray(), [])
+  const allEntries = liveEntries || []
 
   const daysInMonth = new Date(year, month, 0).getDate()
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
@@ -234,13 +215,17 @@ export function CalendarPage() {
                         <span className="text-sm text-stone-500">Stress</span>
                         <StarRating value={entry.stress} interactive={false} size="sm" />
                       </div>
-                      {entry.activities.length > 0 && (
+                      {entry.activities && entry.activities.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {entry.activities.map((ea) => (
-                            <span key={ea.activity.name} className="text-xs bg-yellow-100 text-yellow-800 rounded-full px-2 py-0.5">
-                              {ea.activity.name}
-                            </span>
-                          ))}
+                          {entry.activities.map((act) => {
+                            const name = typeof act === "string" ? act : (act as any).activity?.name
+                            if (!name) return null
+                            return (
+                              <span key={name} className="text-xs bg-yellow-100 text-yellow-800 rounded-full px-2 py-0.5">
+                                {name}
+                              </span>
+                            )
+                          })}
                         </div>
                       )}
                       {entry.note && (

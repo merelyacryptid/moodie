@@ -260,7 +260,7 @@ Tiny Note
 
 Optional
 
-Maximum 120 characters.
+Maximum 200 characters.
 
 Button
 

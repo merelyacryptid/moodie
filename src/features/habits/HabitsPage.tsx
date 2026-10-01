@@ -1,88 +1,51 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
+import { useLiveQuery } from "dexie-react-hooks"
+import { db, toggleHabitCompletion } from "@/lib/db"
+import type { Habit as DbHabit, HabitCompletion as DbHabitCompletion } from "@/types"
 
-interface HabitCompletion {
-  id: string
-  habitId: string
-  date: string
-  completed: boolean
-}
-
-interface Habit {
-  id: string
-  name: string
-  icon: string
-  color: string
-  completions: HabitCompletion[]
+interface HabitWithCompletions extends DbHabit {
+  completions: DbHabitCompletion[]
 }
 
 export function HabitsPage() {
   const now = new Date()
-  const [habits, setHabits] = useState<Habit[]>([])
   const [month] = useState(now.getMonth() + 1)
   const [year] = useState(now.getFullYear())
 
-  useEffect(() => {
-    fetch(`/api/habits?month=${month}&year=${year}`)
-      .then((res) => res.json())
-      .then(setHabits)
-  }, [month, year])
+  // Query live local habits and completions from IndexedDB
+  const liveHabits = useLiveQuery(() => db.habits.toArray(), []) || []
+  const liveCompletions = useLiveQuery(() => db.completions.toArray(), []) || []
+
+  const habits: HabitWithCompletions[] = useMemo(() => {
+    return liveHabits.map((h) => ({
+      ...h,
+      completions: liveCompletions.filter((c) => c.habitId === h.id && c.completed !== false),
+    }))
+  }, [liveHabits, liveCompletions])
 
   const daysInMonth = new Date(year, month, 0).getDate()
 
-  const completionMap = new Map<string, Set<string>>()
-  for (const habit of habits) {
-    const completedDates = new Set(
-      habit.completions.filter((c) => c.completed).map((c) => c.date)
-    )
-    completionMap.set(habit.id, completedDates)
-  }
+  const completionMap = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const habit of habits) {
+      const completedDates = new Set(habit.completions.map((c) => c.date))
+      map.set(habit.id, completedDates)
+    }
+    return map
+  }, [habits])
 
   const toggleHabit = useCallback(
-    async (habitId: string, date: string, currentCompleted: boolean) => {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(date).padStart(2, "0")}`
-      const res = await fetch("/api/habits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          habitId,
-          date: dateStr,
-          completed: !currentCompleted,
-        }),
-      })
-      if (res.ok) {
-        setHabits((prev) =>
-          prev.map((h) => {
-            if (h.id !== habitId) return h
-            const existing = h.completions.find((c) => c.date === dateStr)
-            if (existing) {
-              return {
-                ...h,
-                completions: h.completions.map((c) =>
-                  c.date === dateStr ? { ...c, completed: !currentCompleted } : c
-                ),
-              }
-            }
-            return {
-              ...h,
-              completions: [
-                ...h.completions,
-                { id: "", habitId, date: dateStr, completed: !currentCompleted },
-              ],
-            }
-          })
-        )
-      }
+    async (habitId: string, day: number | string, currentCompleted: boolean) => {
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+      await toggleHabitCompletion(habitId, dateStr, !currentCompleted)
     },
     [month, year]
   )
 
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-
-  function calcStreak(habit: Habit): { current: number; longest: number } {
+  function calcStreak(habit: HabitWithCompletions): { current: number; longest: number } {
     const sorted = habit.completions
-      .filter((c) => c.completed)
       .map((c) => c.date)
       .sort()
 
@@ -95,10 +58,10 @@ export function HabitsPage() {
     for (let i = 1; i < sorted.length; i++) {
       const prev = new Date(sorted[i - 1])
       const curr = new Date(sorted[i])
-      const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24)
+      const diff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24))
       if (diff === 1) {
         streak++
-      } else {
+      } else if (diff > 1) {
         longest = Math.max(longest, streak)
         streak = 1
       }
@@ -106,9 +69,9 @@ export function HabitsPage() {
     longest = Math.max(longest, streak)
 
     // Check if today or yesterday is in the streak
-    const today = new Date()
-    const lastDate = new Date(sorted[sorted.length - 1])
-    const diffFromToday = (today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+    const today = new Date().toISOString().split("T")[0]
+    const lastDate = sorted[sorted.length - 1]
+    const diffFromToday = Math.round((new Date(today).getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24))
     if (diffFromToday <= 1) {
       current = streak
     }
@@ -116,8 +79,9 @@ export function HabitsPage() {
     return { current, longest }
   }
 
-  function calcPercentage(habit: Habit): number {
-    const completed = habit.completions.filter((c) => c.completed).length
+  function calcPercentage(habit: HabitWithCompletions): number {
+    const monthPrefix = `${year}-${String(month).padStart(2, "0")}`
+    const completed = habit.completions.filter((c) => c.date.startsWith(monthPrefix)).length
     return Math.round((completed / daysInMonth) * 100)
   }
 

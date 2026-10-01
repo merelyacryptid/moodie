@@ -11,12 +11,12 @@ model Entry {
   id            String   @id @default(cuid())
   date          String
   timeOfDay     String   @default("morning")
-  mood          Int
-  energy        Int
-  activityLevel Int      @default(0)
+  mood          Float
+  energy        Float
+  activityLevel Float    @default(0)
   sleepHours    Float    @default(0)
   waterLevel    String   @default("")
-  stress        Int      @default(0)
+  stress        Float    @default(0)
   note          String?
   journal       String?
   loggedAt      DateTime @default(now())

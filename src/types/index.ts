@@ -46,6 +46,7 @@ export const ACTIVITY_TO_HABIT: Record<string, string> = {
 }
 
 export function moodToEmoji(mood: number): string {
+  const rounded = Math.min(5, Math.max(1, Math.round(mood)))
   const map: Record<number, string> = {
     1: "😔",
     2: "😐",
@@ -53,13 +54,13 @@ export function moodToEmoji(mood: number): string {
     4: "😊",
     5: "😁",
   }
-  return map[mood] ?? "🙂"
+  return map[rounded] ?? "🙂"
 }
 
 export function moodToColor(mood: number): string {
   if (mood >= 4) return "bg-yellow-200"
-  if (mood === 3) return "bg-amber-100"
-  if (mood === 2) return "bg-sky-200"
+  if (mood >= 3) return "bg-amber-100"
+  if (mood >= 2) return "bg-sky-200"
   return "bg-purple-200"
 }
 
@@ -69,14 +70,14 @@ export interface Entry {
   id: string                    // crypto.randomUUID()
   date: string                  // "YYYY-MM-DD"
   timeOfDay: TimeOfDay
-  mood: number | null           // 1-5
-  energy: number | null
-  activityLevel: number | null
-  sleepHours: number | null
-  waterLevel: WaterLevel | null
-  stress: number | null
+  mood: number                  // 0.5-5
+  energy: number
+  activityLevel: number
+  sleepHours: number
+  waterLevel: string
+  stress: number
   note: string | null
-  journal: string[] | null
+  journal: string | null
   activities: string[]          // activity names, custom ones included
   loggedAt: number              // Date.now()
 }
@@ -91,4 +92,5 @@ export interface Habit {
 export interface HabitCompletion {
   habitId: string
   date: string
+  completed?: boolean
 }

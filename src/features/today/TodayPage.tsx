@@ -1,11 +1,19 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { ChevronLeft, ChevronRight, Download, Upload, ShieldCheck } from "lucide-react"
 import { StarRating } from "@/components/StarRating"
 import { ActivityChip } from "@/components/ActivityChip"
-import { ACTIVITIES, WATER_LEVELS } from "@/types"
+import { ACTIVITIES, WATER_LEVELS, type Entry } from "@/types"
 import { getLocalDateString } from "@/lib/utils"
+import {
+  db,
+  saveEntry,
+  migrateFromSQLiteIfEmpty,
+  requestPersistentStorage,
+  exportBackup,
+  importBackup,
+} from "@/lib/db"
 
 interface EntryData {
   id?: string
@@ -20,21 +28,6 @@ interface EntryData {
   note: string
   journal: string
   activityNames: string[]
-}
-
-interface EntryResponse {
-  id: string
-  date: string
-  timeOfDay: string
-  mood: number
-  energy: number
-  activityLevel: number
-  sleepHours: number
-  waterLevel: string
-  stress: number
-  note: string | null
-  journal: string | null
-  activities: { activity: { name: string } }[]
 }
 
 const TIME_SLOTS = ["morning", "afternoon", "evening"]
@@ -89,11 +82,11 @@ function saveList(key: string, items: string[]) {
 
 type Tab = "mood" | "journal"
 
-export function TodayPage() {
+export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}) {
   const [date, setDate] = useState(getLocalDateString())
   const [entry, setEntry] = useState<EntryData>(defaultEntry(getLocalDateString()))
   const [drafts, setDrafts] = useState<Record<string, EntryData>>({})
-  const [dayEntries, setDayEntries] = useState<EntryResponse[]>([])
+  const [dayEntries, setDayEntries] = useState<Entry[]>([])
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -104,10 +97,21 @@ export function TodayPage() {
   const [showAddInput, setShowAddInput] = useState(false)
   const [newActivityName, setNewActivityName] = useState("")
   const [tab, setTab] = useState<Tab>("mood")
+  const [showBackup, setShowBackup] = useState(false)
+  const [backupMessage, setBackupMessage] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setCustomActivities(loadList(CUSTOM_KEY))
     setHiddenActivities(loadList(HIDDEN_KEY))
+    requestPersistentStorage()
+
+    // Seamless one-time migration if switching from older server database
+    migrateFromSQLiteIfEmpty().then((migrated) => {
+      if (migrated) {
+        db.entries.where("date").equals(date).toArray().then(setDayEntries)
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -117,28 +121,35 @@ export function TodayPage() {
     setDrafts({})
     const tod = getDefaultTimeOfDay()
 
-    fetch(`/api/entries/today?date=${date}`)
-      .then((res) => res.json())
-      .then((entries: EntryResponse[]) => {
+    db.entries
+      .where("date")
+      .equals(date)
+      .toArray()
+      .then((entries) => {
         setDayEntries(entries)
         const existing = entries.find((e) => e.timeOfDay === tod)
         if (existing) {
           setEntry({
+            id: existing.id,
             date: existing.date,
             timeOfDay: existing.timeOfDay,
             mood: existing.mood,
             energy: existing.energy,
             activityLevel: existing.activityLevel,
             sleepHours: existing.sleepHours,
-            waterLevel: existing.waterLevel,
+            waterLevel: existing.waterLevel || "",
             stress: existing.stress,
             note: existing.note || "",
-            journal: existing.journal || "",
-            activityNames: existing.activities.map((ea) => ea.activity.name),
+            journal: typeof existing.journal === "string" ? existing.journal : "",
+            activityNames: Array.isArray(existing.activities) ? existing.activities : [],
           })
         } else {
           setEntry((prev) => ({ ...defaultEntry(date), timeOfDay: prev.timeOfDay }))
         }
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error("Failed to load local reflections:", err)
         setLoading(false)
       })
   }, [date])
@@ -173,17 +184,18 @@ export function TodayPage() {
     const existing = dayEntries.find((e) => e.timeOfDay === tod)
     if (existing) {
       setEntry({
+        id: existing.id,
         date: existing.date,
         timeOfDay: existing.timeOfDay,
         mood: existing.mood,
         energy: existing.energy,
         activityLevel: existing.activityLevel,
         sleepHours: existing.sleepHours,
-        waterLevel: existing.waterLevel,
+        waterLevel: existing.waterLevel || "",
         stress: existing.stress,
         note: existing.note || "",
-        journal: existing.journal || "",
-        activityNames: existing.activities.map((ea) => ea.activity.name),
+        journal: typeof existing.journal === "string" ? existing.journal : "",
+        activityNames: Array.isArray(existing.activities) ? existing.activities : [],
       })
     } else {
       setEntry({ ...defaultEntry(date), timeOfDay: tod })
@@ -234,26 +246,57 @@ export function TodayPage() {
     setSaving(true)
     setError("")
     try {
-      const res = await fetch("/api/entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(entry),
+      await saveEntry({
+        id: entry.id,
+        date: entry.date,
+        timeOfDay: entry.timeOfDay as any,
+        mood: entry.mood,
+        energy: entry.energy,
+        activityLevel: entry.activityLevel,
+        sleepHours: entry.sleepHours,
+        waterLevel: entry.waterLevel,
+        stress: entry.stress,
+        note: entry.note || null,
+        journal: entry.journal || null,
+        activities: entry.activityNames,
       })
-      if (res.ok) {
-        setDrafts((prev) => {
-          const next = { ...prev }
-          delete next[`${date}|${entry.timeOfDay}`]
-          return next
-        })
-        setSaved(true)
-      } else {
-        const text = await res.text()
-        setError(text || "Something went wrong")
-      }
-    } catch {
-      setError("Failed to save.")
+
+      // Refresh today's reflections
+      const updated = await db.entries.where("date").equals(date).toArray()
+      setDayEntries(updated)
+
+      setDrafts((prev) => {
+        const next = { ...prev }
+        delete next[`${date}|${entry.timeOfDay}`]
+        return next
+      })
+      setSaved(true)
+    } catch (err) {
+      console.error("Save error:", err)
+      setError("Failed to save to local database.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const res = await importBackup(text)
+      if (res.success) {
+        setBackupMessage(`Restored ${res.count} reflections!`)
+        const updated = await db.entries.where("date").equals(date).toArray()
+        setDayEntries(updated)
+        setTimeout(() => setBackupMessage(""), 3500)
+      } else {
+        setBackupMessage("Failed to parse backup file.")
+      }
+    } catch {
+      setBackupMessage("Error reading file.")
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
@@ -310,7 +353,25 @@ export function TodayPage() {
             Back to today
           </button>
         )}
-        <h1 className="text-2xl font-semibold text-stone-700 mt-1">Today's Reflection</h1>
+        <div className="flex items-center justify-center gap-2 mt-1">
+          <h1 className="text-2xl font-semibold text-stone-700">Today's Reflection</h1>
+          {onShowWelcome && (
+            <button
+              onClick={onShowWelcome}
+              title="Open the crowd"
+              className="text-base text-stone-400 hover:text-stone-700 transition-transform hover:scale-110 p-0.5"
+            >
+              👀
+            </button>
+          )}
+          <button
+            onClick={() => setShowBackup(true)}
+            title="Local Data & Backup"
+            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5"
+          >
+            <ShieldCheck className="w-5 h-5 text-stone-400 hover:text-amber-500" />
+          </button>
+        </div>
       </div>
 
       <div className="flex justify-center gap-1 bg-white rounded-2xl p-1 shadow-sm border border-stone-100">
@@ -463,13 +524,14 @@ export function TodayPage() {
               <textarea
                 value={entry.note}
                 onChange={(e) => {
-                  if (e.target.value.length <= 120) updateField("note", e.target.value)
+                  if (e.target.value.length <= 200) updateField("note", e.target.value)
                 }}
+                maxLength={200}
                 placeholder="Anything small you'd like to remember..."
                 className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300 resize-none"
                 rows={3}
               />
-              <p className="text-xs text-stone-400 text-right mt-1">{entry.note.length}/120</p>
+              <p className="text-xs text-stone-400 text-right mt-1">{entry.note.length}/200</p>
             </div>
           </>
         ) : (
@@ -512,6 +574,61 @@ export function TodayPage() {
           {saving ? "Saving..." : "Save Reflection"}
         </button>
       </div>
+
+      {showBackup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl border border-stone-100 space-y-4">
+            <div className="text-center space-y-1">
+              <span className="text-3xl">🌱</span>
+              <h3 className="text-lg font-semibold text-stone-800">Your Local Data</h3>
+              <p className="text-xs text-stone-500 leading-relaxed">
+                moodie is 100% local-first. Your reflections and habits exist solely in your browser's IndexedDB and never leave your device.
+              </p>
+            </div>
+
+            {backupMessage && (
+              <p className="text-xs text-center font-medium text-amber-700 bg-amber-50 py-1.5 px-3 rounded-xl border border-amber-200/50">
+                {backupMessage}
+              </p>
+            )}
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={exportBackup}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-amber-100/70 hover:bg-amber-100 text-amber-900 font-medium text-sm transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Export Backup (.json)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl border border-stone-200 hover:bg-stone-50 text-stone-600 font-medium text-sm transition-all"
+              >
+                <Upload className="w-4 h-4" />
+                Restore from Backup
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportFile}
+                className="hidden"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowBackup(false)}
+              className="w-full py-2 text-xs text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -23,5 +23,5 @@ export default function Home() {
 
   if (showWelcome) return <WelcomePage onStart={handleStart} />
 
-  return <TodayPage />
+  return <TodayPage onShowWelcome={() => setShowWelcome(true)} />
 }
