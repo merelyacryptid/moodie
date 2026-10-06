@@ -180,6 +180,42 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+## Planned Issues & Roadmap
+
+- [ ] **[#1](https://github.com/merelyacryptid/moodie/issues/1) Zero-Knowledge Cross-Device Sync (Phone & Laptop)**
+  - Sync reflections and habits between mobile and desktop while maintaining a strict zero-knowledge privacy guarantee (no unencrypted user data on any server).
+  - *Approaches*: End-to-End Encrypted (E2EE) blind relay using the Web Crypto API (`AES-GCM-256` with client-derived passkeys) or direct P2P device pairing via WebRTC with QR codes.
+
+- [ ] **[#2](https://github.com/merelyacryptid/moodie/issues/2) Entry Deletion & Session Cleanup**
+  - Provide a gentle, confirmation-guarded option to delete a specific time slot reflection (Morning, Afternoon, Evening) or an entire day's entry.
+  - Cleanly remove records from IndexedDB and gracefully recompute streaks and habit auto-completions.
+
+- [ ] **[#3](https://github.com/merelyacryptid/moodie/issues/3) Customizable Journal Prompts**
+  - Allow users to add, edit, reorder, or remove reflection questions and prompts.
+  - Support custom prompt categories (gratitude, work reflection, evening wind-down) saved locally.
+
+- [ ] **[#4](https://github.com/merelyacryptid/moodie/issues/4) Statistically Rigorous Discoveries & User Verification Engine**
+  - Refine the correlation engine using the **Benjamini-Hochberg (BH) Procedure** to control the False Discovery Rate (FDR) across multiple hypothesis tests (testing 20+ activities against mood creates high false-positive risks with naive p-values).
+  - Calculate effect sizes (such as Cohen's *d*) to prioritize meaningful changes over trivial statistical noise.
+  - Introduce a user verification feedback loop (*"Does this pattern feel accurate?"*) and optional 7-day gentle micro-experiments to empirically validate discoveries.
+
+- [ ] **[#5](https://github.com/merelyacryptid/moodie/issues/5) Progressive Web App (PWA) & Offline Mobile Installation** *(Recommended)*
+  - Add web app manifest, service worker caching, and home-screen icons so moodie functions seamlessly as a native-feeling mobile app on iOS and Android.
+
+- [ ] **[#6](https://github.com/merelyacryptid/moodie/issues/6) Custom Habit Management & Color Customization** 
+  - Allow users to create new habits that correspond to their custom activity chips, complete with custom pastel colors and icons.
+
+- [ ] **[#7](https://github.com/merelyacryptid/moodie/issues/7) Obsidian & Markdown Daily Notes Export** 
+  - Export reflections directly into Obsidian-compatible Markdown daily notes with YAML frontmatter, tags, and formatted journal entries.
+
+- [ ] **[#8](https://github.com/merelyacryptid/moodie/issues/8) Tactile Keyboard Shortcuts & Quick-Log Mode**
+  - Support numeric keys (`1`–`5`) for rating stars, arrow keys for time slots, and `Cmd`/`Ctrl` + `Enter` for instant saving.
+
+- [ ] **[#9](https://github.com/merelyacryptid/moodie/issues/9) Codebase Health & React 19 Linting Cleanup** *(Recommended)*
+  - Resolve cascading `useEffect` state updates in `TodayPage.tsx` and eliminate remaining loose `any` types for rock-solid type safety.
+
+---
+
 ## 📄 License
 
 This project is open-source under the [MIT License](LICENSE).
