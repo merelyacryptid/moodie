@@ -17,9 +17,11 @@ import {
   Check,
   X,
   RefreshCw,
+  Keyboard,
 } from "lucide-react"
 import { StarRating } from "@/components/StarRating"
 import { ActivityChip } from "@/components/ActivityChip"
+import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal"
 import { ACTIVITIES, WATER_LEVELS, type Entry } from "@/types"
 import { getLocalDateString } from "@/lib/utils"
 import {
@@ -160,6 +162,9 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
 
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false)
+
+  // Keyboard Shortcuts Modal State
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
 
   // Direct QR/Sync Link Auto-Pairing and Background Sync
   useEffect(() => {
@@ -491,6 +496,124 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
     }
   }
 
+  // Keyboard Shortcuts Hook & State Sync Refs
+  const handleSubmitRef = useRef(handleSubmit)
+  const switchTimeOfDayRef = useRef(switchTimeOfDay)
+  const changeDateRef = useRef(changeDate)
+  const updateFieldRef = useRef(updateField)
+  const entryRef = useRef(entry)
+  const tabRef = useRef(tab)
+  const savingRef = useRef(saving)
+
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit
+    switchTimeOfDayRef.current = switchTimeOfDay
+    changeDateRef.current = changeDate
+    updateFieldRef.current = updateField
+    entryRef.current = entry
+    tabRef.current = tab
+    savingRef.current = saving
+  })
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement
+      const isEditingText =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        activeEl instanceof HTMLSelectElement ||
+        activeEl?.getAttribute("contenteditable") === "true"
+
+      // 1. Universal Quick-Save: Cmd/Ctrl + Enter or Cmd/Ctrl + S
+      if ((e.metaKey || e.ctrlKey) && (e.key === "Enter" || e.key.toLowerCase() === "s")) {
+        e.preventDefault()
+        if (savingRef.current) return
+        if (tabRef.current === "mood" && entryRef.current.mood === 0) {
+          setError("Gently pick a mood star before saving ⭐")
+          return
+        }
+        handleSubmitRef.current()
+        return
+      }
+
+      // 2. Escape closes open modals
+      if (e.key === "Escape") {
+        setShowShortcutsModal(false)
+        setShowBackup(false)
+        setShowSyncModal(false)
+        setIsEditingName(false)
+        setShowDeleteSlotConfirm(false)
+        setShowDeleteDayConfirm(false)
+        setCustomizingPrompts(false)
+        setShowAddInput(false)
+        return
+      }
+
+      // If typing in any text input/textarea, do not intercept regular navigation keys
+      if (isEditingText) return
+
+      // 3. Question mark (?) toggles the Keyboard Shortcuts Modal
+      if (e.key === "?") {
+        e.preventDefault()
+        setShowShortcutsModal((prev) => !prev)
+        return
+      }
+
+      // 4. Date Navigation: Alt + ArrowLeft / Alt + ArrowRight
+      if (e.altKey && e.key === "ArrowLeft") {
+        e.preventDefault()
+        changeDateRef.current(-1)
+        return
+      }
+      if (e.altKey && e.key === "ArrowRight") {
+        e.preventDefault()
+        changeDateRef.current(1)
+        return
+      }
+
+      // 5. Direct Slot Jump: Alt + 1, Alt + 2, Alt + 3
+      if (e.altKey && (e.key === "1" || e.key === "2" || e.key === "3")) {
+        e.preventDefault()
+        const slotIdx = parseInt(e.key, 10) - 1
+        if (TIME_SLOTS[slotIdx]) {
+          switchTimeOfDayRef.current(TIME_SLOTS[slotIdx])
+        }
+        return
+      }
+
+      const isSliderFocused = activeEl?.getAttribute("role") === "slider"
+
+      // 6. Slot Navigation: ArrowLeft / ArrowRight (or [ / ])
+      if (!isSliderFocused) {
+        if (e.key === "ArrowLeft" || e.key === "[") {
+          e.preventDefault()
+          const currentIdx = TIME_SLOTS.indexOf(entryRef.current.timeOfDay)
+          const nextIdx = (currentIdx - 1 + TIME_SLOTS.length) % TIME_SLOTS.length
+          switchTimeOfDayRef.current(TIME_SLOTS[nextIdx])
+          return
+        }
+        if (e.key === "ArrowRight" || e.key === "]") {
+          e.preventDefault()
+          const currentIdx = TIME_SLOTS.indexOf(entryRef.current.timeOfDay)
+          const nextIdx = (currentIdx + 1) % TIME_SLOTS.length
+          switchTimeOfDayRef.current(TIME_SLOTS[nextIdx])
+          return
+        }
+
+        // 7. Quick-log Mood with 1–5 keys when on mood tab
+        if (tabRef.current === "mood" && e.key >= "1" && e.key <= "5") {
+          e.preventDefault()
+          const val = parseInt(e.key, 10)
+          updateFieldRef.current("mood", val)
+          return
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeyDown)
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown)
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -632,6 +755,14 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           >
             <RefreshCw className="w-5 h-5 text-stone-400 hover:text-amber-500" />
           </button>
+          <button
+            onClick={() => setShowShortcutsModal(true)}
+            title="Keyboard Shortcuts (?)"
+            aria-label="Keyboard shortcuts"
+            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
+          >
+            <Keyboard className="w-5 h-5 text-stone-400 hover:text-amber-500" />
+          </button>
         </div>
       </div>
 
@@ -642,7 +773,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
             <button
               key={slot}
               onClick={() => switchTimeOfDay(slot)}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-all ${
+              className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 cursor-pointer ${
                 entry.timeOfDay === slot
                   ? "bg-yellow-200 text-yellow-900 shadow-sm"
                   : hasEntry
@@ -662,7 +793,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-all ${
+            className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 cursor-pointer ${
               tab === t
                 ? "bg-yellow-200 text-yellow-900 shadow-sm"
                 : "text-stone-400 hover:text-stone-600"
@@ -678,17 +809,17 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           <>
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
               <label className="block text-sm font-medium text-stone-600 mb-2">Mood</label>
-              <StarRating value={entry.mood} onChange={(v) => updateField("mood", v)} />
+              <StarRating label="Mood rating (1 to 5)" value={entry.mood} onChange={(v) => updateField("mood", v)} />
             </div>
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
               <label className="block text-sm font-medium text-stone-600 mb-2">Energy</label>
-              <StarRating value={entry.energy} onChange={(v) => updateField("energy", v)} />
+              <StarRating label="Energy rating (1 to 5)" value={entry.energy} onChange={(v) => updateField("energy", v)} />
             </div>
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
               <label className="block text-sm font-medium text-stone-600 mb-2">Activity Level</label>
-              <StarRating value={entry.activityLevel} onChange={(v) => updateField("activityLevel", v)} />
+              <StarRating label="Activity level rating (1 to 5)" value={entry.activityLevel} onChange={(v) => updateField("activityLevel", v)} />
             </div>
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
@@ -720,7 +851,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
               <label className="block text-sm font-medium text-stone-600 mb-2">Stress</label>
-              <StarRating value={entry.stress} onChange={(v) => updateField("stress", v)} />
+              <StarRating label="Stress rating (1 to 5)" value={entry.stress} onChange={(v) => updateField("stress", v)} />
             </div>
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
@@ -1016,9 +1147,12 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           <button
             onClick={handleSubmit}
             disabled={saving || (tab === "mood" && entry.mood === 0)}
-            className="w-full rounded-2xl bg-yellow-400 hover:bg-yellow-300 disabled:bg-stone-200 disabled:text-stone-400 text-stone-800 font-medium py-3 px-6 transition-all duration-150 cursor-pointer shadow-xs"
+            className="w-full rounded-2xl bg-yellow-400 hover:bg-yellow-300 disabled:bg-stone-200 disabled:text-stone-400 text-stone-800 font-medium py-3 px-6 transition-all duration-150 cursor-pointer shadow-xs flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
           >
-            {saving ? "Saving..." : currentSlotEntry ? "Update Reflection" : "Save Reflection"}
+            <span>{saving ? "Saving..." : currentSlotEntry ? "Update Reflection" : "Save Reflection"}</span>
+            <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-stone-900/10 text-stone-700 rounded-md">
+              ⌘↵
+            </kbd>
           </button>
 
           {dayEntries.length > 0 && (
@@ -1167,6 +1301,12 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         onSyncComplete={() => {
           db.entries.where("date").equals(date).toArray().then(setDayEntries)
         }}
+      />
+
+      {/* Tactile Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        open={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
       />
     </div>
   )

@@ -208,7 +208,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - [ ] **[#7](https://github.com/merelyacryptid/moodie/issues/7) Obsidian & Markdown Daily Notes Export** 
   - Export reflections directly into Obsidian-compatible Markdown daily notes with YAML frontmatter, tags, and formatted journal entries.
 
-- [ ] **[#8](https://github.com/merelyacryptid/moodie/issues/8) Tactile Keyboard Shortcuts & Quick-Log Mode**
+- [x] **[#8](https://github.com/merelyacryptid/moodie/issues/8) Tactile Keyboard Shortcuts & Quick-Log Mode**
   - Support numeric keys (`1`–`5`) for rating stars, arrow keys for time slots, and `Cmd`/`Ctrl` + `Enter` for instant saving.
 
 - [ ] **[#9](https://github.com/merelyacryptid/moodie/issues/9) Codebase Health & React 19 Linting Cleanup** *(Recommended)*

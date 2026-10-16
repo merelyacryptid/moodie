@@ -15,7 +15,7 @@ Desktop users who reflect daily often prefer navigating via keyboard rather than
    - Pressing `?` brings up a friendly keyboard shortcuts cheat sheet.
 
 ### ✅ Acceptance Criteria
-- [ ] Number keys `1`–`5` map to star ratings on focused rating groups.
-- [ ] `Cmd/Ctrl + Enter` saves the reflection.
-- [ ] Accessible focus rings and ARIA attributes for all interactive chips and rating buttons.
-- [ ] Keyboard shortcuts help modal accessible via `?` key.
+- [x] Number keys `1`–`5` map to star ratings on focused rating groups.
+- [x] `Cmd/Ctrl + Enter` saves the reflection.
+- [x] Accessible focus rings and ARIA attributes for all interactive chips and rating buttons.
+- [x] Keyboard shortcuts help modal accessible via `?` key.

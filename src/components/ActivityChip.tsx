@@ -17,9 +17,9 @@ export function ActivityChip({ label, selected, onClick, onRemove }: ActivityChi
         type="button"
         onClick={onClick}
         className={cn(
-          "rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-150 border",
+          "rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-150 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 cursor-pointer",
           selected
-            ? "bg-yellow-200 border-yellow-300 text-yellow-900"
+            ? "bg-yellow-200 border-yellow-300 text-yellow-900 shadow-xs"
             : "bg-white border-stone-200 text-stone-600 hover:border-yellow-300 hover:bg-yellow-50"
         )}
       >

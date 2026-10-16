@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma"
 // Blind Sync Relay: Stores and serves ONLY encrypted ciphertext blobs.
 // Server cannot read, inspect, or decrypt the data because it does not possess the user's secret key.
 
+// In-memory fallback for serverless environments (e.g. Vercel) where local SQLite is ephemeral or unmigrated
+const memoryRelay = new Map<string, { payload: string; version: number; updatedAt: Date }>()
+
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ channelId: string }> }
@@ -14,20 +17,34 @@ export async function GET(
       return NextResponse.json({ error: "Invalid channel ID" }, { status: 400 })
     }
 
-    const room = await prisma.syncRoom.findUnique({
-      where: { channelId },
-    })
+    try {
+      const room = await prisma.syncRoom.findUnique({
+        where: { channelId },
+      })
 
-    if (!room) {
-      return NextResponse.json({ found: false }, { status: 404 })
+      if (room) {
+        return NextResponse.json({
+          found: true,
+          payload: room.payload,
+          version: room.version,
+          updatedAt: room.updatedAt.toISOString(),
+        })
+      }
+    } catch (dbErr) {
+      console.warn("Prisma sync query failed, using memory fallback:", dbErr)
     }
 
-    return NextResponse.json({
-      found: true,
-      payload: room.payload,
-      version: room.version,
-      updatedAt: room.updatedAt.toISOString(),
-    })
+    const mem = memoryRelay.get(channelId)
+    if (mem) {
+      return NextResponse.json({
+        found: true,
+        payload: mem.payload,
+        version: mem.version,
+        updatedAt: mem.updatedAt.toISOString(),
+      })
+    }
+
+    return NextResponse.json({ found: false }, { status: 404 })
   } catch (err) {
     console.error("Sync GET error:", err)
     return NextResponse.json({ error: "Internal sync error" }, { status: 500 })
@@ -49,23 +66,36 @@ export async function POST(
       return NextResponse.json({ error: "Payload string required" }, { status: 400 })
     }
 
-    const room = await prisma.syncRoom.upsert({
-      where: { channelId },
-      update: {
-        payload: body.payload,
-        version: { increment: 1 },
-      },
-      create: {
-        channelId,
-        payload: body.payload,
-        version: 1,
-      },
-    })
+    let version = 1
+    let updatedAt = new Date()
+
+    try {
+      const room = await prisma.syncRoom.upsert({
+        where: { channelId },
+        update: {
+          payload: body.payload,
+          version: { increment: 1 },
+        },
+        create: {
+          channelId,
+          payload: body.payload,
+          version: 1,
+        },
+      })
+      version = room.version
+      updatedAt = room.updatedAt
+    } catch (dbErr) {
+      console.warn("Prisma sync upsert failed, using memory fallback:", dbErr)
+      const prev = memoryRelay.get(channelId)
+      version = prev ? prev.version + 1 : 1
+      updatedAt = new Date()
+      memoryRelay.set(channelId, { payload: body.payload, version, updatedAt })
+    }
 
     return NextResponse.json({
       success: true,
-      version: room.version,
-      updatedAt: room.updatedAt.toISOString(),
+      version,
+      updatedAt: updatedAt.toISOString(),
     })
   } catch (err) {
     console.error("Sync POST error:", err)
