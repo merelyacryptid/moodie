@@ -62,3 +62,13 @@ model HabitCompletion {
 
   @@unique([habitId, date])
 }
+
+// Zero-Knowledge Blind Sync Relay Room
+// Stores ONLY encrypted ciphertext blobs. The server never has access to the user's secret key.
+model SyncRoom {
+  channelId String   @id
+  payload   String   // encrypted ciphertext blob (AES-GCM-256)
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

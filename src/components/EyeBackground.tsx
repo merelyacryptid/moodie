@@ -14,9 +14,10 @@ type Head = {
 
 function buildBackgroundHeads(width: number, height: number): Head[] {
   const heads: Head[] = []
-  const step = 125
-  const cols = Math.max(6, Math.floor(width / step))
-  const rows = Math.max(5, Math.floor(height / step))
+  const isMobile = width < 640
+  const step = isMobile ? 150 : 130
+  const cols = Math.max(isMobile ? 2 : 5, Math.floor(width / step))
+  const rows = Math.max(isMobile ? 3 : 5, Math.floor(height / step))
   const stepX = width / cols
   const stepY = height / rows
 
@@ -28,7 +29,7 @@ function buildBackgroundHeads(width: number, height: number): Head[] {
         id: `bg-head-${row}-${col}`,
         x,
         y,
-        size: 46 + ((row * 7 + col * 5) % 3) * 8,
+        size: isMobile ? 32 + ((row * 7 + col * 5) % 3) * 6 : 46 + ((row * 7 + col * 5) % 3) * 8,
         sway: ((row * 11 + col * 13) % 10) / 10,
       })
     }

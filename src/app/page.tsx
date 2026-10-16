@@ -10,9 +10,14 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
-    // Use sessionStorage so the welcome page greets you on every new app visit/session,
-    // but stays dismissed throughout your use in this session.
+    // If navigating directly with a date/timeOfDay to edit, bypass the welcome screen
     try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("date")) {
+        setShowWelcome(false)
+        sessionStorage.setItem("moodie-session-entered", "true")
+        return
+      }
       const sessionEntered = sessionStorage.getItem("moodie-session-entered")
       if (sessionEntered) setShowWelcome(false)
     } catch {}

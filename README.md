@@ -182,15 +182,15 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Planned Issues & Roadmap
 
-- [ ] **[#1](https://github.com/merelyacryptid/moodie/issues/1) Zero-Knowledge Cross-Device Sync (Phone & Laptop)**
+- [x] **[#1](https://github.com/merelyacryptid/moodie/issues/1) Zero-Knowledge Cross-Device Sync (Phone & Laptop)**
   - Sync reflections and habits between mobile and desktop while maintaining a strict zero-knowledge privacy guarantee (no unencrypted user data on any server).
-  - *Approaches*: End-to-End Encrypted (E2EE) blind relay using the Web Crypto API (`AES-GCM-256` with client-derived passkeys) or direct P2P device pairing via WebRTC with QR codes.
+  - *Approaches*: End-to-End Encrypted (E2EE) blind relay using the Web Crypto API (`AES-GCM-256` with client-derived passkeys) and instant QR code device pairing with camera scanning.
 
-- [ ] **[#2](https://github.com/merelyacryptid/moodie/issues/2) Entry Deletion & Session Cleanup**
+- [x] **[#2](https://github.com/merelyacryptid/moodie/issues/2) Entry Deletion & Session Cleanup**
   - Provide a gentle, confirmation-guarded option to delete a specific time slot reflection (Morning, Afternoon, Evening) or an entire day's entry.
   - Cleanly remove records from IndexedDB and gracefully recompute streaks and habit auto-completions.
 
-- [ ] **[#3](https://github.com/merelyacryptid/moodie/issues/3) Customizable Journal Prompts**
+- [x] **[#3](https://github.com/merelyacryptid/moodie/issues/3) Customizable Journal Prompts**
   - Allow users to add, edit, reorder, or remove reflection questions and prompts.
   - Support custom prompt categories (gratitude, work reflection, evening wind-down) saved locally.
 

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { getDailyQuote } from "@/lib/quotes"
-import { Sparkles, ArrowRight } from "lucide-react"
+import { Sparkles, ArrowRight, QrCode } from "lucide-react"
 import { getUserName, setUserName } from "@/lib/user"
+import { SyncModal } from "@/components/SyncModal"
 
 type Point = { x: number; y: number }
 
@@ -138,6 +139,7 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
   const [step, setStep] = useState<WelcomeStep>(
     initialName ? "returning_welcome" : "first_welcome"
   )
+  const [showSyncModal, setShowSyncModal] = useState(false)
 
   // Typewriter text
   const targetText = initialName
@@ -271,15 +273,27 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
 
           {/* Workflow 1: First-time user -> Step 1: "let's get started" */}
           {step === "first_welcome" && !isTyping && (
-            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <button
-                type="button"
-                onClick={() => setStep("first_ask_name")}
-                className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-7 py-3 text-sm transition-all duration-200 hover:scale-105 shadow-sm hover:shadow-md cursor-pointer"
-              >
-                <span>let&apos;s get started</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-3">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setStep("first_ask_name")}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-7 py-3 text-sm transition-all duration-200 hover:scale-105 shadow-sm hover:shadow-md cursor-pointer"
+                >
+                  <span>let&apos;s get started</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowSyncModal(true)}
+                  className="text-xs text-stone-400 hover:text-stone-700 underline underline-offset-4 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <QrCode className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Already using Moodie? Sync / Scan QR</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -398,6 +412,15 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
           )}
         </div>
       </div>
+
+      <SyncModal
+        open={showSyncModal}
+        onOpenChange={setShowSyncModal}
+        onSyncComplete={() => {
+          setShowSyncModal(false)
+          onStart()
+        }}
+      />
     </div>
   )
 }

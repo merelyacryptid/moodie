@@ -189,6 +189,56 @@ export async function migrateFromSQLiteIfEmpty(): Promise<boolean> {
   }
 }
 
+// Recompute habit completions for a date after reflection deletion
+export async function recomputeHabitsForDate(date: string): Promise<void> {
+  const remainingEntries = await db.entries.where("date").equals(date).toArray()
+  const allHabits = await ensureHabitsSeeded()
+
+  // Collect all remaining activities for this date
+  const remainingActivities = new Set(
+    remainingEntries.flatMap((e) => (Array.isArray(e.activities) ? e.activities : [])).map((a) => a.toLowerCase())
+  )
+
+  for (const habit of allHabits) {
+    const matchingActivities = (HABIT_TO_ACTIVITIES[habit.name] || [habit.name]).map((a) => a.toLowerCase())
+    const isCompleted = matchingActivities.some((act) => remainingActivities.has(act))
+
+    if (isCompleted) {
+      await db.completions.put({ habitId: habit.id, date, completed: true })
+    } else {
+      // If no remaining activity on this date triggers this habit, clear the completion
+      await db.completions.delete([habit.id, date])
+    }
+  }
+}
+
+// Delete an individual reflection and update habit completions
+export async function deleteEntry(id: string): Promise<boolean> {
+  try {
+    const entry = await db.entries.get(id)
+    if (!entry) return false
+
+    await db.entries.delete(id)
+    await recomputeHabitsForDate(entry.date)
+    return true
+  } catch (err) {
+    console.error("Failed to delete entry:", err)
+    return false
+  }
+}
+
+// Delete all reflections and habit completions for a given date
+export async function deleteDayEntries(date: string): Promise<boolean> {
+  try {
+    await db.entries.where("date").equals(date).delete()
+    await db.completions.where("date").equals(date).delete()
+    return true
+  } catch (err) {
+    console.error("Failed to delete day entries:", err)
+    return false
+  }
+}
+
 // Export local data to a JSON backup file
 export async function exportBackup(): Promise<void> {
   const [entries, habits, completions] = await Promise.all([
@@ -197,6 +247,13 @@ export async function exportBackup(): Promise<void> {
     db.completions.toArray(),
   ])
 
+  // Dynamically load prompts if available
+  let prompts: unknown[] = []
+  try {
+    const { loadJournalPrompts } = await import("@/lib/prompts")
+    prompts = loadJournalPrompts()
+  } catch {}
+
   const backupData = {
     app: "moodie",
     version: 1,
@@ -204,6 +261,7 @@ export async function exportBackup(): Promise<void> {
     entries,
     habits,
     completions,
+    prompts,
   }
 
   const blob = new Blob([JSON.stringify(backupData, null, 2)], {
@@ -235,6 +293,12 @@ export async function importBackup(jsonString: string): Promise<{ success: boole
     }
     if (Array.isArray(data.completions) && data.completions.length > 0) {
       await db.completions.bulkPut(data.completions)
+    }
+    if (Array.isArray(data.prompts) && data.prompts.length > 0) {
+      try {
+        const { saveJournalPrompts } = await import("@/lib/prompts")
+        saveJournalPrompts(data.prompts)
+      } catch {}
     }
 
     return { success: true, count: data.entries.length }

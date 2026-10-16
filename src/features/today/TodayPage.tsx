@@ -1,7 +1,23 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { ChevronLeft, ChevronRight, Download, Upload, ShieldCheck } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Upload,
+  ShieldCheck,
+  Trash2,
+  Pencil,
+  SlidersHorizontal,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  RotateCcw,
+  Check,
+  X,
+  RefreshCw,
+} from "lucide-react"
 import { StarRating } from "@/components/StarRating"
 import { ActivityChip } from "@/components/ActivityChip"
 import { ACTIVITIES, WATER_LEVELS, type Entry } from "@/types"
@@ -14,8 +30,20 @@ import {
   requestPersistentStorage,
   exportBackup,
   importBackup,
+  deleteEntry,
+  deleteDayEntries,
 } from "@/lib/db"
-
+import {
+  loadJournalPrompts,
+  saveJournalPrompts,
+  resetJournalPrompts,
+  getJournalAnswer,
+  setJournalAnswer,
+  type JournalPrompt,
+} from "@/lib/prompts"
+import { SyncModal } from "@/components/SyncModal"
+import { pushEncryptedSync, pullEncryptedSync } from "@/lib/sync/syncManager"
+import { getStoredSyncPhrase, setStoredSyncPhrase, isValid12WordPhrase } from "@/lib/sync/crypto"
 import { useUserName } from "@/hooks/useUserName"
 
 interface EntryData {
@@ -41,16 +69,6 @@ function getDefaultTimeOfDay(): string {
   if (h < 17) return "afternoon"
   return "evening"
 }
-
-const JOURNAL_QUESTIONS = [
-  "How am I feeling right now?",
-  "What's on my mind?",
-  "What am I looking forward to?",
-  "What is one thing I can control today?",
-  "Three things I'm grateful for",
-  "Something I learned today",
-  "One sentence that sums up today",
-]
 
 const defaultEntry = (date: string): EntryData => ({
   date,
@@ -90,16 +108,34 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameEditInput, setNameEditInput] = useState("")
 
-  const [date, setDate] = useState(getLocalDateString())
-  const [entry, setEntry] = useState<EntryData>(defaultEntry(getLocalDateString()))
+  const [date, setDate] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      return params.get("date") || getLocalDateString()
+    }
+    return getLocalDateString()
+  })
+  const [entry, setEntry] = useState<EntryData>(() => {
+    const d = typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("date") || getLocalDateString()
+      : getLocalDateString()
+    const initial = defaultEntry(d)
+    if (typeof window !== "undefined") {
+      const qTod = new URLSearchParams(window.location.search).get("timeOfDay")
+      if (qTod && TIME_SLOTS.includes(qTod)) {
+        initial.timeOfDay = qTod
+      }
+    }
+    return initial
+  })
   const [drafts, setDrafts] = useState<Record<string, EntryData>>({})
   const [dayEntries, setDayEntries] = useState<Entry[]>([])
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
-  const [customActivities, setCustomActivities] = useState<string[]>([])
-  const [hiddenActivities, setHiddenActivities] = useState<string[]>([])
+  const [customActivities, setCustomActivities] = useState<string[]>(() => loadList(CUSTOM_KEY))
+  const [hiddenActivities, setHiddenActivities] = useState<string[]>(() => loadList(HIDDEN_KEY))
   const [editMode, setEditMode] = useState(false)
   const [showAddInput, setShowAddInput] = useState(false)
   const [newActivityName, setNewActivityName] = useState("")
@@ -108,9 +144,53 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   const [backupMessage, setBackupMessage] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Customizable Journal Prompts State
+  const [prompts, setPrompts] = useState<JournalPrompt[]>(loadJournalPrompts)
+  const [customizingPrompts, setCustomizingPrompts] = useState(false)
+  const [newPromptText, setNewPromptText] = useState("")
+  const [newPromptCategory, setNewPromptCategory] = useState("Reflection")
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
+  const [editingPromptText, setEditingPromptText] = useState("")
+
+  // Deletion States
+  const [showDeleteSlotConfirm, setShowDeleteSlotConfirm] = useState(false)
+  const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [noticeMessage, setNoticeMessage] = useState("")
+
+  // Sync Modal State
+  const [showSyncModal, setShowSyncModal] = useState(false)
+
+  // Direct QR/Sync Link Auto-Pairing and Background Sync
   useEffect(() => {
-    setCustomActivities(loadList(CUSTOM_KEY))
-    setHiddenActivities(loadList(HIDDEN_KEY))
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const syncParam = params.get("sync")
+      if (syncParam) {
+        const clean = decodeURIComponent(syncParam).trim().toLowerCase().replace(/\s+/g, " ")
+        if (isValid12WordPhrase(clean)) {
+          setStoredSyncPhrase(clean)
+          pullEncryptedSync().then((res) => {
+            if (res.success) {
+              db.entries.where("date").equals(date).toArray().then(setDayEntries)
+              setNoticeMessage("Paired device & synced reflections ✨")
+              setTimeout(() => setNoticeMessage(""), 4000)
+            }
+          })
+          window.history.replaceState({}, "", window.location.pathname)
+        }
+      } else if (getStoredSyncPhrase()) {
+        // Automatically check for remote updates on mount/date change
+        pullEncryptedSync().then((res) => {
+          if (res.success && res.changesApplied && res.changesApplied > 0) {
+            db.entries.where("date").equals(date).toArray().then(setDayEntries)
+          }
+        })
+      }
+    }
+  }, [date])
+
+  useEffect(() => {
     requestPersistentStorage()
 
     // Seamless one-time migration if switching from older server database
@@ -119,7 +199,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         db.entries.where("date").equals(date).toArray().then(setDayEntries)
       }
     })
-  }, [])
+  }, [date])
 
   useEffect(() => {
     setLoading(true)
@@ -259,6 +339,97 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
     }))
   }
 
+  // Prompt Customization Handlers
+  const handleAddPrompt = () => {
+    const text = newPromptText.trim()
+    if (!text) return
+    const updated = [
+      ...prompts,
+      {
+        id: `p_${Date.now()}`,
+        text,
+        category: newPromptCategory.trim() || "Custom",
+      },
+    ]
+    setPrompts(updated)
+    saveJournalPrompts(updated)
+    setNewPromptText("")
+  }
+
+  const handleSaveEditedPrompt = (id: string) => {
+    const text = editingPromptText.trim()
+    if (!text) return
+    const updated = prompts.map((p) => (p.id === id ? { ...p, text } : p))
+    setPrompts(updated)
+    saveJournalPrompts(updated)
+    setEditingPromptId(null)
+    setEditingPromptText("")
+  }
+
+  const handleDeletePrompt = (id: string) => {
+    const updated = prompts.filter((p) => p.id !== id)
+    setPrompts(updated)
+    saveJournalPrompts(updated)
+  }
+
+  const handleMovePrompt = (index: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? index - 1 : index + 1
+    if (targetIdx < 0 || targetIdx >= prompts.length) return
+    const updated = [...prompts]
+    const temp = updated[index]
+    updated[index] = updated[targetIdx]
+    updated[targetIdx] = temp
+    setPrompts(updated)
+    saveJournalPrompts(updated)
+  }
+
+  const handleResetPrompts = () => {
+    const defaults = resetJournalPrompts()
+    setPrompts(defaults)
+    setEditingPromptId(null)
+  }
+
+  // Deletion Handlers
+  const currentSlotEntry = dayEntries.find((e) => e.timeOfDay === entry.timeOfDay)
+
+  const handleDeleteCurrentSlot = async () => {
+    if (!currentSlotEntry) return
+    setIsDeleting(true)
+    try {
+      await deleteEntry(currentSlotEntry.id)
+      setEntry(defaultEntry(date))
+      const updated = await db.entries.where("date").equals(date).toArray()
+      setDayEntries(updated)
+      setShowDeleteSlotConfirm(false)
+      setNoticeMessage(`Deleted ${entry.timeOfDay} reflection.`)
+      setTimeout(() => setNoticeMessage(""), 3500)
+      pushEncryptedSync().catch(() => {})
+    } catch (err) {
+      console.error("Delete slot error:", err)
+      setError("Failed to delete reflection.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDeleteFullDay = async () => {
+    setIsDeleting(true)
+    try {
+      await deleteDayEntries(date)
+      setEntry(defaultEntry(date))
+      setDayEntries([])
+      setShowDeleteDayConfirm(false)
+      setNoticeMessage("Deleted all reflections for this day.")
+      setTimeout(() => setNoticeMessage(""), 3500)
+      pushEncryptedSync().catch(() => {})
+    } catch (err) {
+      console.error("Delete day error:", err)
+      setError("Failed to delete day.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const handleSubmit = async () => {
     setSaving(true)
     setError("")
@@ -288,6 +459,9 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         return next
       })
       setSaved(true)
+
+      // Automatically push encrypted update to relay if sync is linked
+      pushEncryptedSync().catch(() => {})
     } catch (err) {
       console.error("Save error:", err)
       setError("Failed to save to local database.")
@@ -447,9 +621,16 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           <button
             onClick={() => setShowBackup(true)}
             title="Local Data & Backup"
-            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5"
+            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
           >
             <ShieldCheck className="w-5 h-5 text-stone-400 hover:text-amber-500" />
+          </button>
+          <button
+            onClick={() => setShowSyncModal(true)}
+            title="Cross-Device Sync (QR & 12 Words)"
+            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
+          >
+            <RefreshCw className="w-5 h-5 text-stone-400 hover:text-amber-500" />
           </button>
         </div>
       </div>
@@ -616,44 +797,313 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           </>
         ) : (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 space-y-4">
-            <label className="block text-sm font-medium text-stone-600">Journal</label>
-            <p className="text-xs text-stone-400 -mt-2">
-              Optional. Just for you — nobody else reads this.
-            </p>
-            {JOURNAL_QUESTIONS.map((q, i) => (
-              <div key={i}>
-                <label className="block text-xs font-medium text-stone-500 mb-1">{q}</label>
-                <textarea
-                  value={
-                    entry.journal
-                      ? (JSON.parse(entry.journal)?.[i] ?? "")
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const answers = entry.journal ? JSON.parse(entry.journal) : []
-                    answers[i] = e.target.value
-                    updateField("journal", JSON.stringify(answers))
-                  }}
-                  placeholder="Write something..."
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300 resize-none"
-                  rows={2}
-                />
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-stone-600">Journal</label>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Optional. Just for you — nobody else reads this.
+                </p>
               </div>
-            ))}
+              <button
+                type="button"
+                onClick={() => setCustomizingPrompts(!customizingPrompts)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors flex items-center gap-1 cursor-pointer ${
+                  customizingPrompts
+                    ? "bg-amber-100 border-amber-300 text-amber-800"
+                    : "bg-white border-stone-200 text-stone-500 hover:border-stone-300"
+                }`}
+              >
+                <SlidersHorizontal className="w-3 h-3" />
+                {customizingPrompts ? "Done" : "Customize"}
+              </button>
+            </div>
+
+            {customizingPrompts ? (
+              <div className="space-y-3 bg-stone-50/70 p-3 sm:p-4 rounded-2xl border border-stone-200/60">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-stone-600">Customize Prompts</p>
+                  <button
+                    type="button"
+                    onClick={handleResetPrompts}
+                    className="text-[11px] text-stone-400 hover:text-stone-600 flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset Defaults
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {prompts.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-stone-200/80 shadow-2xs"
+                    >
+                      {editingPromptId === p.id ? (
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <input
+                            type="text"
+                            value={editingPromptText}
+                            onChange={(e) => setEditingPromptText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveEditedPrompt(p.id)
+                              if (e.key === "Escape") setEditingPromptId(null)
+                            }}
+                            className="flex-1 rounded-lg border border-stone-200 px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-300"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEditedPrompt(p.id)}
+                            className="p-1 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 cursor-pointer"
+                            title="Save"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingPromptId(null)}
+                            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 cursor-pointer"
+                            title="Cancel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs text-stone-700 truncate">{p.text}</span>
+                            {p.category && (
+                              <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50 shrink-0">
+                                {p.category}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              disabled={i === 0}
+                              onClick={() => handleMovePrompt(i, "up")}
+                              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 disabled:opacity-30 cursor-pointer"
+                              title="Move up"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={i === prompts.length - 1}
+                              onClick={() => handleMovePrompt(i, "down")}
+                              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 disabled:opacity-30 cursor-pointer"
+                              title="Move down"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingPromptId(p.id)
+                                setEditingPromptText(p.text)
+                              }}
+                              className="p-1 rounded-lg hover:bg-stone-100 text-stone-500 cursor-pointer"
+                              title="Edit"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePrompt(p.id)}
+                              className="p-1 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add new prompt row */}
+                <div className="pt-2 border-t border-stone-200/60 flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={newPromptText}
+                    onChange={(e) => setNewPromptText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddPrompt()
+                    }}
+                    placeholder="New reflection question..."
+                    className="flex-1 rounded-xl border border-stone-200 px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-300"
+                  />
+                  <select
+                    value={newPromptCategory}
+                    onChange={(e) => setNewPromptCategory(e.target.value)}
+                    className="rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                  >
+                    <option value="Check-in">Check-in</option>
+                    <option value="Reflection">Reflection</option>
+                    <option value="Looking Ahead">Looking Ahead</option>
+                    <option value="Mindfulness">Mindfulness</option>
+                    <option value="Gratitude">Gratitude</option>
+                    <option value="Growth">Growth</option>
+                    <option value="Summary">Summary</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddPrompt}
+                    className="px-3 py-1.5 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-900 text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add
+                  </button>
+                </div>
+              </div>
+            ) : (
+              prompts.map((q, i) => (
+                <div key={q.id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-stone-600">{q.text}</label>
+                    {q.category && (
+                      <span className="text-[10px] text-stone-400 bg-stone-50 px-2 py-0.5 rounded-full border border-stone-100">
+                        {q.category}
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    value={getJournalAnswer(entry.journal, q, i)}
+                    onChange={(e) => {
+                      const updated = setJournalAnswer(entry.journal, q, i, e.target.value)
+                      updateField("journal", updated)
+                    }}
+                    placeholder="Write something..."
+                    className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300 resize-none transition-colors"
+                    rows={2}
+                  />
+                </div>
+              ))
+            )}
           </div>
+        )}
+
+        {noticeMessage && (
+          <p className="text-xs text-center font-medium text-amber-800 bg-amber-50 py-2 px-3 rounded-xl border border-amber-200 animate-in fade-in">
+            {noticeMessage}
+          </p>
         )}
 
         {error && (
           <p className="text-sm text-red-400 text-center">{error}</p>
         )}
-        <button
-          onClick={handleSubmit}
-          disabled={saving || (tab === "mood" && entry.mood === 0)}
-          className="w-full rounded-2xl bg-yellow-400 hover:bg-yellow-300 disabled:bg-stone-200 disabled:text-stone-400 text-stone-800 font-medium py-3 px-6 transition-all duration-150"
-        >
-          {saving ? "Saving..." : "Save Reflection"}
-        </button>
+
+        <div className="space-y-2">
+          {currentSlotEntry && (
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-stone-400 flex items-center gap-1">
+                <span className="text-green-500 font-bold">✓</span> Recorded for {entry.timeOfDay}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowDeleteSlotConfirm(true)}
+                className="text-xs text-stone-400 hover:text-red-500 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete this reflection
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={saving || (tab === "mood" && entry.mood === 0)}
+            className="w-full rounded-2xl bg-yellow-400 hover:bg-yellow-300 disabled:bg-stone-200 disabled:text-stone-400 text-stone-800 font-medium py-3 px-6 transition-all duration-150 cursor-pointer shadow-xs"
+          >
+            {saving ? "Saving..." : currentSlotEntry ? "Update Reflection" : "Save Reflection"}
+          </button>
+
+          {dayEntries.length > 0 && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setShowDeleteDayConfirm(true)}
+                className="text-xs text-stone-400 hover:text-red-500 transition-colors cursor-pointer"
+              >
+                Delete entire day ({dayEntries.length} reflection{dayEntries.length > 1 ? "s" : ""})
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Delete Current Reflection Confirmation Modal */}
+      {showDeleteSlotConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl border border-stone-100 space-y-4">
+            <div className="text-center space-y-1">
+              <span className="text-3xl">🗑️</span>
+              <h3 className="text-base font-semibold text-stone-800">
+                Delete {entry.timeOfDay} reflection?
+              </h3>
+              <p className="text-xs text-stone-500 leading-relaxed">
+                This will remove your reflection for this time slot. Your habit completions will be automatically updated.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteSlotConfirm(false)}
+                className="flex-1 py-2 px-3 rounded-xl border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteCurrentSlot}
+                className="flex-1 py-2 px-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors cursor-pointer"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Full Day Confirmation Modal */}
+      {showDeleteDayConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl border border-stone-100 space-y-4">
+            <div className="text-center space-y-1">
+              <span className="text-3xl">📅</span>
+              <h3 className="text-base font-semibold text-stone-800">
+                Delete all reflections for this day?
+              </h3>
+              <p className="text-xs text-stone-500 leading-relaxed">
+                This will remove all recorded reflections for {dateStr} and reset all habit checkmarks for this date.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteDayConfirm(false)}
+                className="flex-1 py-2 px-3 rounded-xl border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteFullDay}
+                className="flex-1 py-2 px-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors cursor-pointer"
+              >
+                {isDeleting ? "Deleting..." : "Delete Day"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showBackup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-xs p-4 animate-in fade-in duration-200">
@@ -662,7 +1112,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
               <span className="text-3xl">🌱</span>
               <h3 className="text-lg font-semibold text-stone-800">Your Local Data</h3>
               <p className="text-xs text-stone-500 leading-relaxed">
-                moodie is 100% local-first. Your reflections and habits exist solely in your browser's IndexedDB and never leave your device.
+                moodie is 100% local-first. Your reflections and habits exist solely in your browser&apos;s IndexedDB and never leave your device.
               </p>
             </div>
 
@@ -709,6 +1159,15 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           </div>
         </div>
       )}
+
+      {/* Cross-Device E2EE Sync Modal */}
+      <SyncModal
+        open={showSyncModal}
+        onOpenChange={setShowSyncModal}
+        onSyncComplete={() => {
+          db.entries.where("date").equals(date).toArray().then(setDayEntries)
+        }}
+      />
     </div>
   )
 }

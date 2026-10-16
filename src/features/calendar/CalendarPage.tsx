@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import Link from "next/link"
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { CalendarDay } from "@/components/CalendarDay"
 import { StarRating } from "@/components/StarRating"
 import { moodToEmoji, type Entry } from "@/types"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { db } from "@/lib/db"
+import { db, deleteEntry, deleteDayEntries } from "@/lib/db"
 import { generateMockEntries } from "@/lib/mockData"
 import { MockDataNotice } from "@/components/MockDataNotice"
 import { useUserName } from "@/hooks/useUserName"
@@ -67,6 +68,9 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [, setSelectedIndex] = useState(0)
+  const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
+  const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Safely extract string name, handling prop string, prop object, or hook fallback
   const userName = useMemo(() => {
@@ -140,6 +144,32 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
   })
   const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const dayNamesFull = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+  const handleDeleteEntry = async () => {
+    if (!entryToDelete) return
+    setIsDeleting(true)
+    try {
+      await deleteEntry(entryToDelete.id)
+      setEntryToDelete(null)
+    } catch (err) {
+      console.error("Delete entry error:", err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDeleteDay = async () => {
+    if (!selectedDate) return
+    setIsDeleting(true)
+    try {
+      await deleteDayEntries(selectedDate)
+      setShowDeleteDayConfirm(false)
+    } catch (err) {
+      console.error("Delete day error:", err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full transition-all">
@@ -261,21 +291,53 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
               ) : (
                 <div className="space-y-3.5 mt-2 max-h-[60vh] overflow-y-auto pr-1">
                   {sortedSelected.map((entry) => (
-                    <div key={entry.id} className="border border-stone-100 rounded-2xl p-3 sm:p-4 bg-stone-50/50">
-                      <p className="text-xs font-semibold text-stone-400 capitalize mb-2">{entry.timeOfDay}</p>
-                      <div className="space-y-2.5">
+                    <div key={entry.id} className="border border-stone-100 rounded-2xl p-3 sm:p-4 bg-stone-50/50 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-stone-500 capitalize">{entry.timeOfDay}</p>
+                        <div className="flex items-center gap-1.5">
+                          <Link
+                            href={`/?date=${selectedDate}&timeOfDay=${entry.timeOfDay}`}
+                            className="flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg px-2.5 py-1 font-medium transition-colors cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Edit
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setEntryToDelete(entry)}
+                            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 bg-white hover:bg-red-50 border border-red-200/60 rounded-lg px-2.5 py-1 font-medium transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-stone-500">Mood</span>
+                          <span className="text-xs text-stone-500">Mood</span>
                           <StarRating value={entry.mood} interactive={false} size="sm" />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-stone-500">Energy</span>
+                          <span className="text-xs text-stone-500">Energy</span>
                           <StarRating value={entry.energy} interactive={false} size="sm" />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-stone-500">Stress</span>
+                          <span className="text-xs text-stone-500">Stress</span>
                           <StarRating value={entry.stress} interactive={false} size="sm" />
                         </div>
+                        {entry.sleepHours > 0 && (
+                          <div className="flex items-center justify-between text-xs text-stone-500">
+                            <span>Sleep</span>
+                            <span className="font-medium text-stone-700">{entry.sleepHours} hrs</span>
+                          </div>
+                        )}
+                        {entry.waterLevel && (
+                          <div className="flex items-center justify-between text-xs text-stone-500">
+                            <span>Water</span>
+                            <span className="font-medium text-stone-700">{entry.waterLevel}</span>
+                          </div>
+                        )}
                         {entry.activities && entry.activities.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {entry.activities.map((act) => {
@@ -295,10 +357,85 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
                       </div>
                     </div>
                   ))}
+
+                  {sortedSelected.length > 0 && (
+                    <div className="pt-2 flex items-center justify-between border-t border-stone-100">
+                      <span className="text-xs text-stone-400">
+                        {sortedSelected.length} {sortedSelected.length === 1 ? "reflection" : "reflections"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteDayConfirm(true)}
+                        className="text-xs text-stone-400 hover:text-red-500 transition-colors cursor-pointer"
+                      >
+                        Delete entire day
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Single Reflection Confirmation */}
+      <Dialog open={!!entryToDelete} onOpenChange={(open) => { if (!open) setEntryToDelete(null) }}>
+        <DialogContent className="bg-white rounded-3xl p-6 max-w-sm w-full">
+          <DialogTitle className="text-base font-semibold text-stone-800 text-center">
+            Delete Reflection?
+          </DialogTitle>
+          <DialogDescription className="text-xs text-stone-500 text-center mt-1 leading-relaxed">
+            Are you sure you want to remove your {entryToDelete?.timeOfDay} reflection? Your habit checkmarks for this day will automatically update.
+          </DialogDescription>
+          <div className="flex gap-2 pt-3">
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setEntryToDelete(null)}
+              className="flex-1 py-2 px-3 rounded-xl border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={handleDeleteEntry}
+              className="flex-1 py-2 px-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors cursor-pointer"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Full Day Confirmation */}
+      <Dialog open={showDeleteDayConfirm} onOpenChange={setShowDeleteDayConfirm}>
+        <DialogContent className="bg-white rounded-3xl p-6 max-w-sm w-full">
+          <DialogTitle className="text-base font-semibold text-stone-800 text-center">
+            Delete Entire Day?
+          </DialogTitle>
+          <DialogDescription className="text-xs text-stone-500 text-center mt-1 leading-relaxed">
+            This will permanently remove all reflections and reset habit completions for this date.
+          </DialogDescription>
+          <div className="flex gap-2 pt-3">
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setShowDeleteDayConfirm(false)}
+              className="flex-1 py-2 px-3 rounded-xl border border-stone-200 text-stone-600 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={handleDeleteDay}
+              className="flex-1 py-2 px-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors cursor-pointer"
+            >
+              {isDeleting ? "Deleting..." : "Delete Day"}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
