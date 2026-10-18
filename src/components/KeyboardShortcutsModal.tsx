@@ -38,6 +38,11 @@ const SHORTCUT_SECTIONS: { title: string; shortcuts: ShortcutItem[] }[] = [
         detail: "Applies to focused category (Mood, Energy, Activity, Stress)",
       },
       {
+        keys: ["Enter", "or", "Tab"],
+        description: "Jump to next rating field",
+        detail: "Flows smoothly from Mood → Energy → Activity → Sleep → Stress",
+      },
+      {
         keys: ["←", "→"],
         description: "Adjust rating by half a star",
         detail: "Use on any focused rating slider",

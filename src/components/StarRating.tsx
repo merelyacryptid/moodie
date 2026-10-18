@@ -92,6 +92,22 @@ export function StarRating({
       onChange(max)
       return
     }
+
+    // Enter (without Cmd/Ctrl) confirms & advances focus to the next field
+    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault()
+      e.stopPropagation()
+      const focusable = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          'button:not([tabindex="-1"]), [tabindex="0"], input:not([type="hidden"]), select, textarea'
+        )
+      ).filter((el) => el.offsetParent !== null && !el.hasAttribute("disabled"))
+      const currentIdx = focusable.indexOf(e.currentTarget)
+      if (currentIdx !== -1 && currentIdx < focusable.length - 1) {
+        focusable[currentIdx + 1].focus()
+      }
+      return
+    }
   }
 
   return (
