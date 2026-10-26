@@ -662,6 +662,39 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
     return () => window.removeEventListener("keydown", handleGlobalKeyDown)
   }, [])
 
+  const activeSlot: "morning" | "evening" | "all" =
+    journalView === "auto"
+      ? entry.timeOfDay === "evening"
+        ? "evening"
+        : "morning"
+      : journalView
+
+  const morningPrompts = useMemo(
+    () => prompts.filter((p) => !p.timeOfDay || p.timeOfDay === "morning" || p.timeOfDay === "all"),
+    [prompts]
+  )
+  const eveningPrompts = useMemo(
+    () => prompts.filter((p) => !p.timeOfDay || p.timeOfDay === "evening" || p.timeOfDay === "all"),
+    [prompts]
+  )
+
+  const morningAnsweredCount = useMemo(
+    () => morningPrompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
+    [morningPrompts, entry.journal]
+  )
+  const eveningAnsweredCount = useMemo(
+    () => eveningPrompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
+    [eveningPrompts, entry.journal]
+  )
+  const allAnsweredCount = useMemo(
+    () => prompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
+    [prompts, entry.journal]
+  )
+
+  const visiblePrompts = useMemo(() => {
+    return filterPromptsBySlot(prompts, activeSlot)
+  }, [prompts, activeSlot])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -701,39 +734,6 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
       : entry.timeOfDay === "afternoon"
       ? "Good afternoon"
       : "Good evening"
-
-  const activeSlot: "morning" | "evening" | "all" =
-    journalView === "auto"
-      ? entry.timeOfDay === "evening"
-        ? "evening"
-        : "morning"
-      : journalView
-
-  const morningPrompts = useMemo(
-    () => prompts.filter((p) => !p.timeOfDay || p.timeOfDay === "morning" || p.timeOfDay === "all"),
-    [prompts]
-  )
-  const eveningPrompts = useMemo(
-    () => prompts.filter((p) => !p.timeOfDay || p.timeOfDay === "evening" || p.timeOfDay === "all"),
-    [prompts]
-  )
-
-  const morningAnsweredCount = useMemo(
-    () => morningPrompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
-    [morningPrompts, entry.journal]
-  )
-  const eveningAnsweredCount = useMemo(
-    () => eveningPrompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
-    [eveningPrompts, entry.journal]
-  )
-  const allAnsweredCount = useMemo(
-    () => prompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
-    [prompts, entry.journal]
-  )
-
-  const visiblePrompts = useMemo(() => {
-    return filterPromptsBySlot(prompts, activeSlot)
-  }, [prompts, activeSlot])
 
   return (
     <div className="space-y-6">
