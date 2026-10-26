@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,6 +18,12 @@ import {
   X,
   RefreshCw,
   Keyboard,
+  Sun,
+  Moon,
+  Sparkles,
+  Palette,
+  Users,
+  Calendar,
 } from "lucide-react"
 import { StarRating } from "@/components/StarRating"
 import { ActivityChip } from "@/components/ActivityChip"
@@ -41,9 +47,14 @@ import {
   resetJournalPrompts,
   getJournalAnswer,
   setJournalAnswer,
+  filterPromptsBySlot,
+  getCategoryMeta,
+  PROMPT_CATEGORIES,
   type JournalPrompt,
+  type PromptSlot,
 } from "@/lib/prompts"
 import { SyncModal } from "@/components/SyncModal"
+import { ThemeModal } from "@/components/ThemeModal"
 import { pushEncryptedSync, pullEncryptedSync } from "@/lib/sync/syncManager"
 import { getStoredSyncPhrase, setStoredSyncPhrase, isValid12WordPhrase } from "@/lib/sync/crypto"
 import { useUserName } from "@/hooks/useUserName"
@@ -149,10 +160,19 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   // Customizable Journal Prompts State
   const [prompts, setPrompts] = useState<JournalPrompt[]>(loadJournalPrompts)
   const [customizingPrompts, setCustomizingPrompts] = useState(false)
+  const [customizeFilter, setCustomizeFilter] = useState<PromptSlot | "all">("all")
   const [newPromptText, setNewPromptText] = useState("")
   const [newPromptCategory, setNewPromptCategory] = useState("Reflection")
+  const [newPromptSlot, setNewPromptSlot] = useState<PromptSlot>("morning")
+  const [newPromptSubtext, setNewPromptSubtext] = useState("")
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
   const [editingPromptText, setEditingPromptText] = useState("")
+  const [editingPromptCategory, setEditingPromptCategory] = useState("Reflection")
+  const [editingPromptSlot, setEditingPromptSlot] = useState<PromptSlot>("morning")
+  const [editingPromptSubtext, setEditingPromptSubtext] = useState("")
+
+  // Journal active view: "auto" (tracks entry.timeOfDay) | "morning" | "evening" | "all"
+  const [journalView, setJournalView] = useState<"auto" | "morning" | "evening" | "all">("auto")
 
   // Deletion States
   const [showDeleteSlotConfirm, setShowDeleteSlotConfirm] = useState(false)
@@ -166,6 +186,9 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   // Keyboard Shortcuts Modal State
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
 
+  // Version / Theme Modal State
+  const [showThemeModal, setShowThemeModal] = useState(false)
+
   // Direct QR/Sync Link Auto-Pairing and Background Sync
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -178,7 +201,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
           pullEncryptedSync().then((res) => {
             if (res.success) {
               db.entries.where("date").equals(date).toArray().then(setDayEntries)
-              setNoticeMessage("Paired device & synced reflections ✨")
+              setNoticeMessage("Paired device & synced reflections")
               setTimeout(() => setNoticeMessage(""), 4000)
             }
           })
@@ -272,6 +295,9 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   }, [])
 
   const switchTimeOfDay = (tod: string) => {
+    if (journalView !== "all") {
+      setJournalView("auto")
+    }
     setDrafts((prev) => ({
       ...prev,
       [`${date}|${entry.timeOfDay}`]: entry,
@@ -348,27 +374,49 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   const handleAddPrompt = () => {
     const text = newPromptText.trim()
     if (!text) return
-    const updated = [
+    const updated: JournalPrompt[] = [
       ...prompts,
       {
         id: `p_${Date.now()}`,
         text,
-        category: newPromptCategory.trim() || "Custom",
+        category: newPromptCategory.trim() || "Reflection",
+        timeOfDay: newPromptSlot,
+        subtext: newPromptSubtext.trim() || undefined,
       },
     ]
     setPrompts(updated)
     saveJournalPrompts(updated)
     setNewPromptText("")
+    setNewPromptSubtext("")
+  }
+
+  const handleStartEditingPrompt = (p: JournalPrompt) => {
+    setEditingPromptId(p.id)
+    setEditingPromptText(p.text)
+    setEditingPromptCategory(p.category || "Reflection")
+    setEditingPromptSlot(p.timeOfDay || "all")
+    setEditingPromptSubtext(p.subtext || "")
   }
 
   const handleSaveEditedPrompt = (id: string) => {
     const text = editingPromptText.trim()
     if (!text) return
-    const updated = prompts.map((p) => (p.id === id ? { ...p, text } : p))
+    const updated = prompts.map((p) =>
+      p.id === id
+        ? {
+            ...p,
+            text,
+            category: editingPromptCategory.trim() || "Reflection",
+            timeOfDay: editingPromptSlot,
+            subtext: editingPromptSubtext.trim() || undefined,
+          }
+        : p
+    )
     setPrompts(updated)
     saveJournalPrompts(updated)
     setEditingPromptId(null)
     setEditingPromptText("")
+    setEditingPromptSubtext("")
   }
 
   const handleDeletePrompt = (id: string) => {
@@ -654,6 +702,39 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
       ? "Good afternoon"
       : "Good evening"
 
+  const activeSlot: "morning" | "evening" | "all" =
+    journalView === "auto"
+      ? entry.timeOfDay === "evening"
+        ? "evening"
+        : "morning"
+      : journalView
+
+  const morningPrompts = useMemo(
+    () => prompts.filter((p) => !p.timeOfDay || p.timeOfDay === "morning" || p.timeOfDay === "all"),
+    [prompts]
+  )
+  const eveningPrompts = useMemo(
+    () => prompts.filter((p) => !p.timeOfDay || p.timeOfDay === "evening" || p.timeOfDay === "all"),
+    [prompts]
+  )
+
+  const morningAnsweredCount = useMemo(
+    () => morningPrompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
+    [morningPrompts, entry.journal]
+  )
+  const eveningAnsweredCount = useMemo(
+    () => eveningPrompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
+    [eveningPrompts, entry.journal]
+  )
+  const allAnsweredCount = useMemo(
+    () => prompts.filter((p) => Boolean(getJournalAnswer(entry.journal, p).trim())).length,
+    [prompts, entry.journal]
+  )
+
+  const visiblePrompts = useMemo(() => {
+    return filterPromptsBySlot(prompts, activeSlot)
+  }, [prompts, activeSlot])
+
   return (
     <div className="space-y-6">
       {/* Inline Name Edit Modal */}
@@ -728,19 +809,29 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
               setIsEditingName(true)
             }}
             title={userName ? `Rename (${userName})` : "Set your name"}
-            className="text-stone-300 hover:text-stone-500 text-xs transition-colors p-1 cursor-pointer"
+            className="text-stone-300 hover:text-stone-500 transition-colors p-1 cursor-pointer"
+            aria-label={userName ? `Rename (${userName})` : "Set your name"}
           >
-            ✎
+            <Pencil className="w-3.5 h-3.5" />
           </button>
           {onShowWelcome && (
             <button
               onClick={onShowWelcome}
               title="Open the crowd"
-              className="text-base text-stone-400 hover:text-stone-700 transition-transform hover:scale-110 p-0.5 cursor-pointer"
+              aria-label="Open the crowd"
+              className="text-stone-400 hover:text-amber-500 transition-transform hover:scale-110 p-0.5 cursor-pointer"
             >
-              👀
+              <Users className="w-5 h-5 text-stone-400 hover:text-amber-500" />
             </button>
           )}
+          <button
+            onClick={() => setShowThemeModal(true)}
+            title="Choose Theme / Version"
+            aria-label="Choose Theme / Version"
+            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
+          >
+            <Palette className="w-5 h-5 text-stone-400 hover:text-amber-500" />
+          </button>
           <button
             onClick={() => setShowBackup(true)}
             title="Local Data & Backup"
@@ -927,135 +1018,215 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
             </div>
           </>
         ) : (
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="space-y-4">
+            {/* Journal Header Bar */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium text-stone-600">Journal</label>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-base font-semibold text-stone-800">
+                    Journal Reflections
+                  </h3>
+                </div>
                 <p className="text-xs text-stone-400 mt-0.5">
-                  Optional. Just for you — nobody else reads this.
+                  Gentle prompts to help you reflect, notice patterns, and explore your day.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setCustomizingPrompts(!customizingPrompts)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors flex items-center gap-1 cursor-pointer ${
+                className={`text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
                   customizingPrompts
-                    ? "bg-amber-100 border-amber-300 text-amber-800"
-                    : "bg-white border-stone-200 text-stone-500 hover:border-stone-300"
+                    ? "bg-amber-100 border-amber-300 text-amber-900 font-medium"
+                    : "bg-white border-stone-200 text-stone-600 hover:border-amber-300 hover:text-amber-900"
                 }`}
               >
-                <SlidersHorizontal className="w-3 h-3" />
+                <SlidersHorizontal className="w-3.5 h-3.5" />
                 {customizingPrompts ? "Done" : "Customize"}
               </button>
             </div>
 
             {customizingPrompts ? (
-              <div className="space-y-3 bg-stone-50/70 p-3 sm:p-4 rounded-2xl border border-stone-200/60">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold text-stone-600">Customize Prompts</p>
+              <div className="space-y-4 bg-stone-50/70 p-3 sm:p-4 rounded-2xl border border-stone-200/70">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-stone-700">Customize Journal Prompts</p>
+                    <p className="text-[11px] text-stone-400 mt-0.5">
+                      Personalize the questions asked during your morning and evening reflections.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={handleResetPrompts}
-                    className="text-[11px] text-stone-400 hover:text-stone-600 flex items-center gap-1 transition-colors cursor-pointer"
+                    className="text-[11px] text-stone-500 hover:text-stone-700 bg-white border border-stone-200 px-2.5 py-1 rounded-xl flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Reset Defaults
                   </button>
                 </div>
 
-                <div className="space-y-2">
-                  {prompts.map((p, i) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-stone-200/80 shadow-2xs"
+                {/* Filter in Customize */}
+                <div className="flex gap-1 bg-white p-1 rounded-xl border border-stone-200/60">
+                  {(["all", "morning", "evening"] as const).map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setCustomizeFilter(slot)}
+                      className={`flex-1 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        customizeFilter === slot
+                          ? "bg-amber-100 text-amber-900 font-semibold"
+                          : "text-stone-500 hover:text-stone-800"
+                      }`}
                     >
-                      {editingPromptId === p.id ? (
-                        <div className="flex items-center gap-1.5 flex-1">
-                          <input
-                            type="text"
-                            value={editingPromptText}
-                            onChange={(e) => setEditingPromptText(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSaveEditedPrompt(p.id)
-                              if (e.key === "Escape") setEditingPromptId(null)
-                            }}
-                            className="flex-1 rounded-lg border border-stone-200 px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-300"
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSaveEditedPrompt(p.id)}
-                            className="p-1 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 cursor-pointer"
-                            title="Save"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingPromptId(null)}
-                            className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 cursor-pointer"
-                            title="Cancel"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs text-stone-700 truncate">{p.text}</span>
-                            {p.category && (
-                              <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50 shrink-0">
-                                {p.category}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              disabled={i === 0}
-                              onClick={() => handleMovePrompt(i, "up")}
-                              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 disabled:opacity-30 cursor-pointer"
-                              title="Move up"
-                            >
-                              <ChevronUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={i === prompts.length - 1}
-                              onClick={() => handleMovePrompt(i, "down")}
-                              className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 disabled:opacity-30 cursor-pointer"
-                              title="Move down"
-                            >
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingPromptId(p.id)
-                                setEditingPromptText(p.text)
-                              }}
-                              className="p-1 rounded-lg hover:bg-stone-100 text-stone-500 cursor-pointer"
-                              title="Edit"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePrompt(p.id)}
-                              className="p-1 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 cursor-pointer"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                      {slot === "all" ? "All Prompts" : slot === "morning" ? "Morning / Day" : "Evening"}
+                    </button>
                   ))}
                 </div>
 
-                {/* Add new prompt row */}
-                <div className="pt-2 border-t border-stone-200/60 flex flex-col sm:flex-row gap-2">
+                {/* List of prompts */}
+                <div className="space-y-2">
+                  {prompts
+                    .filter((p) =>
+                      customizeFilter === "all"
+                        ? true
+                        : customizeFilter === "morning"
+                        ? !p.timeOfDay || p.timeOfDay === "morning" || p.timeOfDay === "all"
+                        : !p.timeOfDay || p.timeOfDay === "evening" || p.timeOfDay === "all"
+                    )
+                    .map((p, i) => {
+                      const meta = getCategoryMeta(p.category)
+                      return (
+                        <div
+                          key={p.id}
+                          className="p-3 bg-white rounded-xl border border-stone-200/80 shadow-2xs space-y-2"
+                        >
+                          {editingPromptId === p.id ? (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={editingPromptText}
+                                onChange={(e) => setEditingPromptText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSaveEditedPrompt(p.id)
+                                  if (e.key === "Escape") setEditingPromptId(null)
+                                }}
+                                placeholder="Question text..."
+                                className="w-full rounded-lg border border-stone-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-300"
+                                autoFocus
+                              />
+                              <input
+                                type="text"
+                                value={editingPromptSubtext}
+                                onChange={(e) => setEditingPromptSubtext(e.target.value)}
+                                placeholder="Gentle guidance / subtext (optional)..."
+                                className="w-full rounded-lg border border-stone-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-300"
+                              />
+                              <div className="flex flex-wrap gap-2 items-center justify-between pt-1">
+                                <div className="flex gap-2">
+                                  <select
+                                    value={editingPromptSlot}
+                                    onChange={(e) => setEditingPromptSlot(e.target.value as PromptSlot)}
+                                    className="rounded-lg border border-stone-200 px-2 py-1 text-xs text-stone-700 bg-white"
+                                  >
+                                    <option value="morning">Morning / Day</option>
+                                    <option value="evening">Evening</option>
+                                    <option value="all">Any Time</option>
+                                  </select>
+                                  <select
+                                    value={editingPromptCategory}
+                                    onChange={(e) => setEditingPromptCategory(e.target.value)}
+                                    className="rounded-lg border border-stone-200 px-2 py-1 text-xs text-stone-700 bg-white"
+                                  >
+                                    {PROMPT_CATEGORIES.map((cat) => (
+                                      <option key={cat} value={cat}>
+                                        {cat}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEditedPrompt(p.id)}
+                                    className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingPromptId(null)}
+                                    className="px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 text-xs hover:bg-stone-50 cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`text-[10px] px-2 py-0.5 rounded-full border ${meta.badgeBg} ${meta.badgeText} ${meta.badgeBorder}`}
+                                  >
+                                    {p.category || "Reflection"}
+                                  </span>
+                                  <span className="text-[10px] text-stone-500 bg-stone-50 border border-stone-200 px-2 py-0.5 rounded-full">
+                                    {p.timeOfDay === "morning"
+                                      ? "Morning"
+                                      : p.timeOfDay === "evening"
+                                      ? "Evening"
+                                      : "Any time"}
+                                  </span>
+                                </div>
+                                <p className="text-xs font-medium text-stone-800">{p.text}</p>
+                                {p.subtext && <p className="text-[11px] text-stone-400 italic">{p.subtext}</p>}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={i === 0}
+                                  onClick={() => handleMovePrompt(i, "up")}
+                                  className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 disabled:opacity-30 cursor-pointer"
+                                  title="Move up"
+                                >
+                                  <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={i === prompts.length - 1}
+                                  onClick={() => handleMovePrompt(i, "down")}
+                                  className="p-1 rounded-lg hover:bg-stone-100 text-stone-400 disabled:opacity-30 cursor-pointer"
+                                  title="Move down"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditingPrompt(p)}
+                                  className="p-1 rounded-lg hover:bg-stone-100 text-stone-500 cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePrompt(p.id)}
+                                  className="p-1 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                </div>
+
+                {/* Add new prompt form */}
+                <div className="pt-3 border-t border-stone-200/70 space-y-2">
+                  <p className="text-xs font-semibold text-stone-700">Add a New Reflection Prompt</p>
                   <input
                     type="text"
                     value={newPromptText}
@@ -1063,56 +1234,235 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleAddPrompt()
                     }}
-                    placeholder="New reflection question..."
-                    className="flex-1 rounded-xl border border-stone-200 px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-300"
+                    placeholder="e.g. What is bringing me joy today?"
+                    className="w-full rounded-xl border border-stone-200 px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-300"
                   />
-                  <select
-                    value={newPromptCategory}
-                    onChange={(e) => setNewPromptCategory(e.target.value)}
-                    className="rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-amber-300"
-                  >
-                    <option value="Check-in">Check-in</option>
-                    <option value="Reflection">Reflection</option>
-                    <option value="Looking Ahead">Looking Ahead</option>
-                    <option value="Mindfulness">Mindfulness</option>
-                    <option value="Gratitude">Gratitude</option>
-                    <option value="Growth">Growth</option>
-                    <option value="Summary">Summary</option>
-                    <option value="Custom">Custom</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleAddPrompt}
-                    className="px-3 py-1.5 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-900 text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add
-                  </button>
+                  <input
+                    type="text"
+                    value={newPromptSubtext}
+                    onChange={(e) => setNewPromptSubtext(e.target.value)}
+                    placeholder="Gentle guidance / subtext (optional)..."
+                    className="w-full rounded-xl border border-stone-200 px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-300"
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                      value={newPromptSlot}
+                      onChange={(e) => setNewPromptSlot(e.target.value as PromptSlot)}
+                      className="rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                    >
+                      <option value="morning">Morning / Day</option>
+                      <option value="evening">Evening</option>
+                      <option value="all">Any Time</option>
+                    </select>
+                    <select
+                      value={newPromptCategory}
+                      onChange={(e) => setNewPromptCategory(e.target.value)}
+                      className="rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs bg-white text-stone-700 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                    >
+                      {PROMPT_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAddPrompt}
+                      className="px-4 py-1.5 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-900 text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Prompt
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
-              prompts.map((q, i) => (
-                <div key={q.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-medium text-stone-600">{q.text}</label>
-                    {q.category && (
-                      <span className="text-[10px] text-stone-400 bg-stone-50 px-2 py-0.5 rounded-full border border-stone-100">
-                        {q.category}
-                      </span>
-                    )}
-                  </div>
-                  <textarea
-                    value={getJournalAnswer(entry.journal, q, i)}
-                    onChange={(e) => {
-                      const updated = setJournalAnswer(entry.journal, q, i, e.target.value)
-                      updateField("journal", updated)
-                    }}
-                    placeholder="Write something..."
-                    className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300 resize-none transition-colors"
-                    rows={2}
-                  />
+              <div className="space-y-4">
+                {/* Mode Selector Pill Bar */}
+                <div className="flex items-center justify-center gap-1.5 bg-stone-100/70 p-1 rounded-2xl border border-stone-200/50">
+                  <button
+                    type="button"
+                    onClick={() => setJournalView("morning")}
+                    className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      activeSlot === "morning"
+                        ? "bg-white text-stone-800 shadow-xs border border-stone-200/60 font-semibold"
+                        : "text-stone-500 hover:text-stone-800"
+                    }`}
+                  >
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Morning / Day</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full border ${
+                        morningAnsweredCount === morningPrompts.length && morningPrompts.length > 0
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                          : "bg-stone-100 text-stone-500 border-stone-200/50"
+                      }`}
+                    >
+                      {morningAnsweredCount === morningPrompts.length && morningPrompts.length > 0
+                        ? "✓"
+                        : `${morningAnsweredCount}/${morningPrompts.length}`}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setJournalView("evening")}
+                    className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      activeSlot === "evening"
+                        ? "bg-white text-stone-800 shadow-xs border border-stone-200/60 font-semibold"
+                        : "text-stone-500 hover:text-stone-800"
+                    }`}
+                  >
+                    <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Evening</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full border ${
+                        eveningAnsweredCount === eveningPrompts.length && eveningPrompts.length > 0
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                          : "bg-stone-100 text-stone-500 border-stone-200/50"
+                      }`}
+                    >
+                      {eveningAnsweredCount === eveningPrompts.length && eveningPrompts.length > 0
+                        ? "✓"
+                        : `${eveningAnsweredCount}/${eveningPrompts.length}`}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setJournalView("all")}
+                    className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      activeSlot === "all"
+                        ? "bg-white text-stone-800 shadow-xs border border-stone-200/60 font-semibold"
+                        : "text-stone-500 hover:text-stone-800"
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>All</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-stone-100 text-stone-500 border border-stone-200/50">
+                      {allAnsweredCount}/{prompts.length}
+                    </span>
+                  </button>
                 </div>
-              ))
+
+                {/* Encouraging Context Card */}
+                <div className="bg-gradient-to-r from-amber-50/80 via-yellow-50/50 to-orange-50/40 rounded-2xl p-3.5 border border-amber-200/50 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {activeSlot === "evening" ? (
+                        <Moon className="w-4 h-4 text-indigo-400" />
+                      ) : activeSlot === "morning" ? (
+                        <Sun className="w-4 h-4 text-amber-500" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                      )}
+                      <h4 className="text-xs font-semibold text-amber-950">
+                        {activeSlot === "evening"
+                          ? "Evening Reflection"
+                          : activeSlot === "morning"
+                          ? "Morning & Afternoon Intentions"
+                          : "All Reflection Prompts"}
+                      </h4>
+                    </div>
+                    <span className="text-[11px] font-medium text-amber-800/80 bg-amber-100/60 px-2 py-0.5 rounded-full border border-amber-200/40">
+                      {activeSlot === "evening"
+                        ? `${eveningAnsweredCount} of ${eveningPrompts.length} answered`
+                        : activeSlot === "morning"
+                        ? `${morningAnsweredCount} of ${morningPrompts.length} answered`
+                        : `${allAnsweredCount} of ${prompts.length} answered`}
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed pl-6">
+                    {activeSlot === "evening"
+                      ? "Take a calm moment to celebrate your small wins, express gratitude, and gently let go of the day."
+                      : activeSlot === "morning"
+                      ? "Check in with yourself, set kind intentions, and anchor yourself on what you can control today."
+                      : "Explore any prompt that speaks to you right now. No rush, write as little or as much as you like."}
+                  </p>
+                </div>
+
+                {/* Prompt Cards */}
+                <div className="space-y-3">
+                  {visiblePrompts.map((q, i) => {
+                    const meta = getCategoryMeta(q.category)
+                    const currentVal = getJournalAnswer(entry.journal, q, i)
+                    const isAnswered = Boolean(currentVal.trim())
+
+                    return (
+                      <div
+                        key={q.id}
+                        className={`rounded-2xl p-4 transition-all duration-200 border ${
+                          isAnswered
+                            ? "bg-white border-amber-200/70 shadow-xs"
+                            : "bg-white border-stone-200/80 shadow-2xs hover:border-stone-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${meta.badgeBg} ${meta.badgeText} ${meta.badgeBorder}`}
+                            >
+                              <span>{q.category || "Reflection"}</span>
+                            </span>
+
+                            {activeSlot === "all" && q.timeOfDay && (
+                              <span className="text-[10px] text-stone-500 bg-stone-50 border border-stone-200/60 px-2 py-0.5 rounded-full">
+                                {q.timeOfDay === "morning"
+                                  ? "Morning / Day"
+                                  : q.timeOfDay === "evening"
+                                  ? "Evening"
+                                  : "Any time"}
+                              </span>
+                            )}
+                          </div>
+
+                          {isAnswered && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-full">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Recorded</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <h4 className="text-sm font-semibold text-stone-800 mt-2 leading-snug">
+                          {q.text}
+                        </h4>
+
+                        {q.subtext && (
+                          <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                            {q.subtext}
+                          </p>
+                        )}
+
+                        <textarea
+                          value={currentVal}
+                          onChange={(e) => {
+                            const updated = setJournalAnswer(entry.journal, q, i, e.target.value)
+                            updateField("journal", updated)
+                          }}
+                          placeholder={q.placeholder || "Write something from your heart..."}
+                          className="w-full mt-2.5 rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400 resize-none transition-all leading-relaxed bg-stone-50/40 focus:bg-white"
+                          rows={
+                            q.id === "p5" || q.id === "p_grateful"
+                              ? 3
+                              : q.id === "p_comparison" || q.id === "p2" || q.id === "p_goals"
+                              ? 3
+                              : 2
+                          }
+                        />
+
+                        {isAnswered && (
+                          <div className="flex justify-end mt-1">
+                            <span className="text-[10px] text-stone-400">
+                              {currentVal.length} characters
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -1174,7 +1524,9 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl border border-stone-100 space-y-4">
             <div className="text-center space-y-1">
-              <span className="text-3xl">🗑️</span>
+              <div className="w-10 h-10 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-2">
+                <Trash2 className="w-5 h-5" />
+              </div>
               <h3 className="text-base font-semibold text-stone-800">
                 Delete {entry.timeOfDay} reflection?
               </h3>
@@ -1209,7 +1561,9 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl border border-stone-100 space-y-4">
             <div className="text-center space-y-1">
-              <span className="text-3xl">📅</span>
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2">
+                <Calendar className="w-5 h-5" />
+              </div>
               <h3 className="text-base font-semibold text-stone-800">
                 Delete all reflections for this day?
               </h3>
@@ -1243,7 +1597,9 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl border border-stone-100 space-y-4">
             <div className="text-center space-y-1">
-              <span className="text-3xl">🌱</span>
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
               <h3 className="text-lg font-semibold text-stone-800">Your Local Data</h3>
               <p className="text-xs text-stone-500 leading-relaxed">
                 moodie is 100% local-first. Your reflections and habits exist solely in your browser&apos;s IndexedDB and never leave your device.
@@ -1307,6 +1663,12 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
       <KeyboardShortcutsModal
         open={showShortcutsModal}
         onClose={() => setShowShortcutsModal(false)}
+      />
+
+      {/* Version / Theme Selector Modal */}
+      <ThemeModal
+        open={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
       />
     </div>
   )

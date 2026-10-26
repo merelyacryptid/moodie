@@ -12,6 +12,7 @@ import { db, deleteEntry, deleteDayEntries } from "@/lib/db"
 import { generateMockEntries } from "@/lib/mockData"
 import { MockDataNotice } from "@/components/MockDataNotice"
 import { useUserName } from "@/hooks/useUserName"
+import { loadJournalPrompts, getAllJournalAnswers, getCategoryMeta } from "@/lib/prompts"
 
 const TIME_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2 }
 
@@ -71,6 +72,7 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
   const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
   const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const prompts = useMemo(() => loadJournalPrompts(), [])
 
   // Safely extract string name, handling prop string, prop object, or hook fallback
   const userName = useMemo(() => {
@@ -354,6 +356,42 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
                         {entry.note && (
                           <p className="text-xs text-stone-600 bg-white border border-stone-100 rounded-xl p-2.5">{entry.note}</p>
                         )}
+                        {(() => {
+                          const journalAnswers = getAllJournalAnswers(entry.journal, prompts)
+                          if (journalAnswers.length === 0) return null
+                          return (
+                            <div className="bg-stone-50/80 rounded-xl p-3 border border-stone-200/60 space-y-2 mt-1">
+                              <p className="text-[11px] font-semibold text-stone-700 flex items-center gap-1.5">
+                                Reflections ({journalAnswers.length})
+                              </p>
+                              <div className="space-y-1.5">
+                                {journalAnswers.map(({ prompt, answer }) => {
+                                  const meta = getCategoryMeta(prompt.category)
+                                  return (
+                                    <div
+                                      key={prompt.id}
+                                      className="bg-white rounded-lg p-2.5 border border-stone-150 text-xs shadow-2xs space-y-1"
+                                    >
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span
+                                          className={`text-[10px] px-2 py-0.5 rounded-full border ${meta.badgeBg} ${meta.badgeText} ${meta.badgeBorder}`}
+                                        >
+                                          {prompt.category || "Reflection"}
+                                        </span>
+                                        <span className="font-medium text-stone-800 text-[11px]">
+                                          {prompt.text}
+                                        </span>
+                                      </div>
+                                      <p className="text-stone-600 pl-0.5 whitespace-pre-wrap leading-relaxed text-[11px]">
+                                        {answer}
+                                      </p>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   ))}
