@@ -18,25 +18,25 @@ export function ThemeModal({ open, onClose }: ThemeModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="theme-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200"
     >
-      <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-xl border border-stone-150 space-y-4 animate-in zoom-in-95 duration-200">
+      <div className="bg-[var(--card)] text-[var(--foreground)] rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-[var(--border)] space-y-4 animate-in zoom-in-95 duration-200">
         <div className="flex items-start justify-between">
           <div className="space-y-0.5">
             <div className="flex items-center gap-1.5">
-              <Palette className="w-4 h-4 text-stone-500" />
-              <h3 id="theme-modal-title" className="text-base font-semibold text-stone-800">
+              <Palette className="w-4 h-4 text-[var(--primary)]" />
+              <h3 id="theme-modal-title" className="text-base font-semibold text-[var(--foreground)]">
                 Choose Version
               </h3>
             </div>
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-[var(--muted-foreground)]">
               Pick the aesthetic that feels right for you.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
+            className="p-1 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -56,8 +56,8 @@ export function ThemeModal({ open, onClose }: ThemeModalProps) {
                 }}
                 className={`w-full p-3.5 rounded-2xl border text-left transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer ${
                   isSelected
-                    ? "bg-stone-50/80 border-stone-800 shadow-xs ring-1 ring-stone-800"
-                    : "bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50/40 shadow-2xs"
+                    ? "bg-[var(--accent)] border-[var(--primary)] shadow-xs ring-1 ring-[var(--primary)]"
+                    : "bg-[var(--card)] border-[var(--border)] hover:bg-[var(--muted)] shadow-2xs"
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -70,14 +70,14 @@ export function ThemeModal({ open, onClose }: ThemeModalProps) {
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-stone-800 truncate">
+                      <span className="text-sm font-semibold text-[var(--foreground)] truncate">
                         {opt.name}
                       </span>
-                      <span className="text-[10px] px-2 py-0.2 rounded-full border bg-stone-100 text-stone-600 border-stone-200">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full border bg-[var(--muted)] text-[var(--muted-foreground)] border-[var(--border)]">
                         {opt.tag}
                       </span>
                     </div>
-                    <p className="text-[11px] text-stone-500 truncate mt-0.5">
+                    <p className="text-[11px] text-[var(--muted-foreground)] truncate mt-0.5">
                       {opt.subtitle}
                     </p>
                   </div>
@@ -85,11 +85,11 @@ export function ThemeModal({ open, onClose }: ThemeModalProps) {
 
                 <div className="shrink-0">
                   {isSelected ? (
-                    <div className="w-5 h-5 rounded-full bg-stone-800 text-white flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center">
                       <Check className="w-3 h-3 stroke-[3]" />
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full border border-stone-300" />
+                    <div className="w-5 h-5 rounded-full border border-[var(--border)]" />
                   )}
                 </div>
               </button>
@@ -101,7 +101,7 @@ export function ThemeModal({ open, onClose }: ThemeModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium transition-colors cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[var(--muted)] hover:opacity-90 text-[var(--foreground)] text-xs font-medium transition-colors cursor-pointer"
           >
             Done
           </button>

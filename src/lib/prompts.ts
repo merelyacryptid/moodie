@@ -209,21 +209,26 @@ export function loadJournalPrompts(): JournalPrompt[] {
     if (!raw) return DEFAULT_JOURNAL_PROMPTS
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const hasTimeOfDay = parsed.some(
-        (item) => item && typeof item === "object" && Boolean(item.timeOfDay)
+      const validItems = parsed.filter((item) => item !== null && item !== undefined)
+      if (validItems.length === 0) return DEFAULT_JOURNAL_PROMPTS
+
+      const hasTimeOfDay = validItems.some(
+        (item) => typeof item === "object" && Boolean(item.timeOfDay)
       )
 
       // Seamlessly upgrade legacy prompts missing timeOfDay
       if (!hasTimeOfDay) {
         const existingIds = new Set(
-          parsed.map((item) => (typeof item === "object" && item ? item.id : null))
+          validItems.map((item) => (typeof item === "object" ? item.id : null))
         )
-        const migrated: JournalPrompt[] = parsed.map((item, idx) => {
+        const migrated: JournalPrompt[] = validItems.map((item, idx) => {
           if (typeof item === "string") {
             return { id: `p_legacy_${idx}`, text: item, category: "Custom", timeOfDay: "all" }
           }
           const defaultMatch = DEFAULT_JOURNAL_PROMPTS.find(
-            (d) => d.id === item.id || d.text.toLowerCase() === (item.text || "").toLowerCase()
+            (d) =>
+              (item.id && d.id === item.id) ||
+              (item.text && d.text.toLowerCase() === (item.text || "").toLowerCase())
           )
           return {
             id: item.id || `p_${Date.now()}_${idx}`,
@@ -239,7 +244,7 @@ export function loadJournalPrompts(): JournalPrompt[] {
         for (const def of DEFAULT_JOURNAL_PROMPTS) {
           const alreadyExists =
             existingIds.has(def.id) ||
-            migrated.some((m) => m.text.toLowerCase() === def.text.toLowerCase())
+            migrated.some((m) => m.text && m.text.toLowerCase() === def.text.toLowerCase())
           if (!alreadyExists) {
             migrated.push(def)
           }
@@ -248,12 +253,14 @@ export function loadJournalPrompts(): JournalPrompt[] {
         return migrated
       }
 
-      return parsed.map((item, idx) => {
+      return validItems.map((item, idx) => {
         if (typeof item === "string") {
           return { id: `p_legacy_${idx}`, text: item, category: "Custom", timeOfDay: "all" }
         }
         const defaultMatch = DEFAULT_JOURNAL_PROMPTS.find(
-          (d) => d.id === item.id || d.text.toLowerCase() === (item.text || "").toLowerCase()
+          (d) =>
+            (item.id && d.id === item.id) ||
+            (item.text && d.text.toLowerCase() === (item.text || "").toLowerCase())
         )
         return {
           id: item.id || `p_${Date.now()}_${idx}`,
@@ -299,6 +306,7 @@ export function filterPromptsBySlot(
   prompts: JournalPrompt[],
   slot: "morning" | "afternoon" | "evening" | "all"
 ): JournalPrompt[] {
+  if (!Array.isArray(prompts)) return []
   if (slot === "all") return prompts
   if (slot === "morning" || slot === "afternoon") {
     return prompts.filter((p) => !p.timeOfDay || p.timeOfDay === "morning" || p.timeOfDay === "all")
@@ -312,13 +320,14 @@ export function filterPromptsBySlot(
  * 1. Keyed object by prompt.id: { "p1": "answer" }
  * 2. Keyed object by prompt.text
  * 3. Legacy array format: ["answer0", "answer1"]
+ * Guaranteed to return a valid string.
  */
 export function getJournalAnswer(
   journalStr: string | null | undefined,
-  prompt: JournalPrompt,
+  prompt?: JournalPrompt | null,
   index?: number
 ): string {
-  if (!journalStr) return ""
+  if (!journalStr || !prompt) return ""
   try {
     const parsed = JSON.parse(journalStr)
     if (Array.isArray(parsed)) {
@@ -328,12 +337,14 @@ export function getJournalAnswer(
       return ""
     }
     if (typeof parsed === "object" && parsed !== null) {
-      return (
-        parsed[prompt.id] ??
-        parsed[prompt.text] ??
-        (typeof index === "number" ? parsed[`legacy_${index}`] : undefined) ??
+      const rawVal =
+        (prompt.id ? (parsed as any)[prompt.id] : undefined) ??
+        (prompt.text ? (parsed as any)[prompt.text] : undefined) ??
+        (typeof index === "number" ? (parsed as any)[`legacy_${index}`] : undefined) ??
         ""
-      )
+      if (typeof rawVal === "string") return rawVal
+      if (typeof rawVal === "number" || typeof rawVal === "boolean") return String(rawVal)
+      return ""
     }
     return ""
   } catch {
@@ -366,7 +377,9 @@ export function setJournalAnswer(
     }
   }
 
-  answers[prompt.id] = value
+  if (prompt && prompt.id) {
+    answers[prompt.id] = typeof value === "string" ? value : String(value ?? "")
+  }
   return JSON.stringify(answers)
 }
 
@@ -377,9 +390,10 @@ export function getAllJournalAnswers(
   journalStr: string | null | undefined,
   prompts: JournalPrompt[]
 ): Array<{ prompt: JournalPrompt; answer: string }> {
-  if (!journalStr) return []
+  if (!journalStr || !Array.isArray(prompts)) return []
   const results: Array<{ prompt: JournalPrompt; answer: string }> = []
   prompts.forEach((p, idx) => {
+    if (!p) return
     const ans = getJournalAnswer(journalStr, p, idx).trim()
     if (ans) {
       results.push({ prompt: p, answer: ans })

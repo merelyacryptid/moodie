@@ -8,8 +8,15 @@ export const db = new Dexie("moodie") as Dexie & {
   completions: Table<HabitCompletion, [string, string]>
 }
 
-// Version 1 schema with indexes for fast querying
+// Version 1: Initial schema from original releases
 db.version(1).stores({
+  entries: "id, &[date+timeOfDay], date, *activities",
+  habits: "id, name",
+  completions: "[habitId+date], habitId, date",
+})
+
+// Version 2: Enhanced indexes for multi-reflection time slots
+db.version(2).stores({
   entries: "id, date, timeOfDay, &[date+timeOfDay], *activities",
   habits: "id, name",
   completions: "[habitId+date], habitId, date",

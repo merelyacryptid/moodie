@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { TodayPage } from "@/features/today/TodayPage"
 import { WelcomePage } from "@/features/welcome/WelcomePage"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 export default function Home() {
   const [showWelcome, setShowWelcome] = useState(true)
@@ -32,7 +33,13 @@ export default function Home() {
 
   if (!mounted) return null
 
-  if (showWelcome) return <WelcomePage onStart={handleStart} />
-
-  return <TodayPage onShowWelcome={() => setShowWelcome(true)} />
+  return (
+    <ErrorBoundary>
+      {showWelcome ? (
+        <WelcomePage onStart={handleStart} />
+      ) : (
+        <TodayPage onShowWelcome={() => setShowWelcome(true)} />
+      )}
+    </ErrorBoundary>
+  )
 }
