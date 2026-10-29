@@ -1,4 +1,4 @@
-# moodie 🌻
+# moodie
 
 > A gentle, playful, and local-first reflection companion.
 
@@ -9,213 +9,63 @@
 [![Dexie.js](https://img.shields.io/badge/Dexie.js-IndexedDB-f59e0b?style=flat)](https://dexie.org/)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25_Local--First-emerald?style=flat)](https://github.com)
 
-**moodie** is a personal wellbeing web app created to help you gently reflect on your days, observe the small things and draw patterns when life gets too busy.
+I built moodie because most mood trackers feel like clinical dashboards or rigid productivity tools. Inspired by things like Finch, Apple Journal, and Spotify Wrapped, I wanted something that feels more like exploring yourself than trying to fix yourself.
 
-Inspired by the warmth and playfulness of **Finch**, **Headspace**, **Apple Journal**, and **Spotify Wrapped**, i wanted to make something that feels more like exploring yourself than fixing yourself.
-
-No clinical dashboards. No rigid productivity scores. No logins, accounts, or cloud storage. Everything stays privately in your browser.
+No clinical scores. No accounts or cloud storage. Everything stays privately in your browser.
 
 ---
 
-## Features
+## What's Inside
 
-### 1. Today & Journaling
-- **Gentle Daily Reflection**: Track how you're feeling with tactile 1–5 star ratings for **Mood**, **Energy**, **Activity Level**, and **Stress**.
-- **Time-of-Day Slots**: Log reflections across **Morning**, **Afternoon**, and **Evening** to capture how your mood ebbs and flows throughout the day. Keeps in mind that mood is not a constant thing throughout the day (Something many apps forget)
-- **Sleep & Water Tracking**: Log your sleep hours and hydration levels (`<1L`, `1–2L`, `2–3L`, `3L+`).
-- **Activity Chips**: Tag from 24+ built-in activities (Reading, Exercise, Friends, Nature, Cooking, Gaming, etc.) or create and manage your own custom activities.
-- **Tiny Note**: Jot down a 200-character snapshot of your moment.
-- **Mindful Journaling**: Dedicated journal tab with guided prompts (*"How am I feeling right now?"*, *"Three things I'm grateful for"*, *"Something I learned today"*).
-- **Date Navigation**: Easily move back and forward in time to add or review past reflections.
-- **Celebration Moment**: Gentle feedback (*"✨ Another star added. See you tomorrow."*) upon saving.
-
-### 2. Calendar View
-- **Monthly Overview**: A monthly grid displaying soft pastel cards colored by overall mood (light yellow, warm cream, light sky blue, soft lavender).
-- **Mood Emojis**: Visual mood cues for each day (`😁`, `😊`, `🙂`, `😐`, `😔`).
-- **Reflection Inspector**: Tap any day to open a modal detailing all recorded sessions, activity tags, notes, and full journal entries.
-- **Intra-Day Mood Wave**: For days with multiple sessions, view a miniature line graph illustrating how your energy and mood shifted from morning to night.
-- **Preview Mode**: Includes sample data preview mode so first-time visitors can explore the UI before logging their first entry.
-
-### ⭐ 3. Discoveries
-- **Spotify Wrapped-style Insights**: Uncover gentle correlations and patterns without clinical charts or judgment.
-- **Key Metrics**:
-  - Overall Average Mood, Energy, and Sleep
-  - Current Reflection Streak & 🏆 All-Time Best Streak
-  - Happiest Weekdays
-  - Sleep & Mood relationships (e.g., mood after 7+ hours of sleep vs. under 6 hours)
-  - Hydration patterns
-- **Dynamic Mood Wave**: A smooth, interactive SVG spline graph showing your mood trajectory across past reflections.
-- **Activity & Impact Breakdown**: Visual bar charts displaying your most frequent activities and which activities provide the biggest relative mood boost.
-- **Gentle Language**: Observations are framed with curiosity (*"We've noticed..."*, *"It seems..."*, *"So far..."*) rather than rigid assertions.
-
-### 4. Habits Tracker
-- **Monthly Habit Matrix**: Track daily habits (Reading, Development, Study, Exercise, Go Outside, Movie, etc.) across days of the current month.
-- **Automated Sync**: Logging an activity in your daily reflection automatically completes the matching habit in your grid.
-- **Manual Overrides**: Toggle any day's habit on or off with user-override support.
-- **Progress Metrics**: View completion percentages, current streaks, and longest streaks for each habit.
-
-### 5. 100% Local-First & Private
-- **Zero Cloud, Zero Login**: No account creation, no trackers, and no external databases.
-- **IndexedDB via Dexie.js**: All data is stored directly in your browser with persistent storage request support.
-- **Backup & Restore**: Export your entire history to a JSON file or restore from a previous backup at any time.
-- **SQLite / Server Migration**: Built-in automatic migration for existing Prisma/SQLite local entries.
+- **Today & Journaling**: Log reflections across Morning, Afternoon, and Evening slots—because mood shifts throughout the day (something many apps forget). Includes 1-5 star ratings for mood, energy, and stress, plus sleep and water tracking, custom activity chips, and guided prompts.
+- **Calendar**: A monthly view colored softly by mood, with an intra-day wave to see how your energy moved from morning to night.
+- **Discoveries**: Spotify Wrapped-style observations rather than cold charts. Gentle correlations between sleep, habits, and mood that stay curious without claiming causation ("We've noticed...", "It seems...").
+- **Habits**: A monthly tracker that automatically marks off habits when you log matching activities in your reflection, with manual overrides and streak tracking.
+- **Local-First & Private**: Stored directly in IndexedDB via Dexie.js. No tracking, no external servers, and full JSON backup/restore anytime.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Framework** | [Next.js 16](https://nextjs.org/) (App Router, Server & Client Components) |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) (Strict typing) |
-| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) with CSS variables & `@theme` tokens |
-| **Local Database** | [Dexie.js](https://dexie.org/) (IndexedDB wrapper) & `dexie-react-hooks` |
-| **Server ORM (Optional)** | [Prisma](https://www.prisma.io/) + SQLite (`@prisma/adapter-better-sqlite3`) |
-| **Icons & UI** | [Lucide React](https://lucide.dev/), `@base-ui/react`, Radix Dialog |
-| **Typography** | [Nunito](https://fonts.google.com/specimen/Nunito) & [Fredoka](https://fonts.google.com/specimen/Fredoka) |
+- **Framework**: Next.js 16 (App Router) & React 19
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Database**: Dexie.js (IndexedDB) with optional Prisma/SQLite fallback
+- **Icons & UI**: Lucide React, Base UI, Radix primitives
 
 ---
 
-## Project Structure
-
-```text
-moodie/
-├── prisma/                     # Prisma schema, migrations, and seed script
-│   ├── schema.prisma           # SQLite schema (Entry, Activity, Habit, HabitCompletion)
-│   └── seed.ts                 # Database seeder
-├── public/                     # Static assets & favicon
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/                # Local/fallback API endpoints (entries, habits, discoveries)
-│   │   ├── calendar/           # Calendar page route
-│   │   ├── discoveries/        # Discoveries page route
-│   │   ├── habits/             # Habits tracker route
-│   │   ├── globals.css         # Tailwind v4 theme definitions and font variables
-│   │   ├── layout.tsx          # Root layout (fonts, ambient background, bottom nav)
-│   │   └── page.tsx            # Home route (welcome gate & Today reflection page)
-│   ├── components/             # Reusable UI components
-│   │   ├── ActivityChip.tsx    # Selectable activity pill chip
-│   │   ├── BottomNavigation.tsx# Floating bottom navigation bar
-│   │   ├── CalendarDay.tsx     # Calendar day card with mood styling
-│   │   ├── EyeBackground.tsx   # Interactive ambient cursor-tracking canvas
-│   │   ├── MockDataNotice.tsx  # Sample data preview indicator
-│   │   ├── StarRating.tsx      # Interactive 5-star rating component
-│   │   └── ui/                 # Dialog modal & Button primitives
-│   ├── features/               # Feature-specific modules
-│   │   ├── today/              # Today reflection, multi-session tabs, journaling, backup
-│   │   ├── calendar/           # Monthly calendar grid & day inspection modal
-│   │   ├── discoveries/        # Insights calculations, MoodWave chart, activity rankings
-│   │   ├── habits/             # Monthly habits matrix & streak calculations
-│   │   └── welcome/            # Interactive greeting screen, name setup & daily quote
-│   ├── hooks/                  # Custom React hooks (useUserName)
-│   ├── lib/                    # Core utilities and business logic
-│   │   ├── db.ts               # Dexie IndexedDB setup, queries, sync, backup & restore
-│   │   ├── discoveries.ts      # Statistical correlations, patterns, and timeline parser
-│   │   ├── mockData.ts         # Realistic sample dataset for empty states
-│   │   ├── quotes.ts           # Curated daily reflection quotes
-│   │   ├── user.ts             # Local user preference storage
-│   │   └── utils.ts            # Formatting & class merge helpers
-│   └── types/                  # TypeScript interfaces and constants
-└── package.json
-```
-
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- **Node.js** 18.18+ (Node 20+ recommended)
-- **npm**, **pnpm**, or **yarn**
+Node.js 18.18+ (Node 20+ recommended)
 
-### 1. Clone the repository
+### Run Locally
 
 ```bash
-git clone https://github.com/your-username/moodie.git
+git clone https://github.com/merelyacryptid/moodie.git
 cd moodie
-```
-
-### 2. Install dependencies
-
-```bash
 npm install
-```
-
-### 3. (Optional) Initialize Prisma Database
-
-If running locally with the server SQLite backend:
-
-```bash
-npx prisma generate
-```
-
-*(Note: moodie is designed local-first with browser IndexedDB, so the app runs out of the box even without server database setup!)*
-
-### 4. Start the development server
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) to start reflecting.
 
 ---
 
-## 🧭 Navigation & Pages
+## Roadmap
 
-| Tab | Route | Description |
-|---|---|---|
-| **Today** | `/` | Morning, afternoon, and evening reflection form + mindful journal |
-| **Calendar** | `/calendar` | Monthly view colored by mood with intra-day inspection modal |
-| **Discoveries** | `/discoveries` | Visual mood wave chart, activity rankings, and correlation cards |
-| **Habits** | `/habits` | Monthly habit grid with auto-sync from logged activities |
-
----
-
-## Data & Privacy Guarantee
-
-- **No remote tracking**: No Google Analytics, telemetry, or remote databases.
-- **Client-side storage**: Entries, habits, and preferences are saved directly to your browser's **IndexedDB** using Dexie.js.
-- **Portable data**: Go to the **Today** page and tap the **Backup & Restore** button to download a complete `.json` copy of your data or transfer it to another browser.
+- [x] Multi-session daily reflections (Morning, Afternoon, Evening)
+- [x] Tactile keyboard shortcuts (1-5 for stars, quick saving)
+- [x] Local backup and restore (JSON export/import)
+- [x] Deleting and editing individual time slots
+- [ ] Progressive Web App (PWA) and offline mobile install
+- [ ] Obsidian & Markdown daily notes export
+- [ ] Zero-knowledge cross-device sync (E2EE device pairing)
 
 ---
 
-## Planned Issues & Roadmap
+## License
 
-- [x] **[#1](https://github.com/merelyacryptid/moodie/issues/1) Zero-Knowledge Cross-Device Sync (Phone & Laptop)**
-  - Sync reflections and habits between mobile and desktop while maintaining a strict zero-knowledge privacy guarantee (no unencrypted user data on any server).
-  - *Approaches*: End-to-End Encrypted (E2EE) blind relay using the Web Crypto API (`AES-GCM-256` with client-derived passkeys) and instant QR code device pairing with camera scanning.
-
-- [x] **[#2](https://github.com/merelyacryptid/moodie/issues/2) Entry Deletion & Session Cleanup**
-  - Provide a gentle, confirmation-guarded option to delete a specific time slot reflection (Morning, Afternoon, Evening) or an entire day's entry.
-  - Cleanly remove records from IndexedDB and gracefully recompute streaks and habit auto-completions.
-
-- [x] **[#3](https://github.com/merelyacryptid/moodie/issues/3) Customizable Journal Prompts**
-  - Allow users to add, edit, reorder, or remove reflection questions and prompts.
-  - Support custom prompt categories (gratitude, work reflection, evening wind-down) saved locally.
-
-- [ ] **[#4](https://github.com/merelyacryptid/moodie/issues/4) Statistically Rigorous Discoveries & User Verification Engine**
-  - Refine the correlation engine using the **Benjamini-Hochberg (BH) Procedure** to control the False Discovery Rate (FDR) across multiple hypothesis tests (testing 20+ activities against mood creates high false-positive risks with naive p-values).
-  - Calculate effect sizes (such as Cohen's *d*) to prioritize meaningful changes over trivial statistical noise.
-  - Introduce a user verification feedback loop (*"Does this pattern feel accurate?"*) and optional 7-day gentle micro-experiments to empirically validate discoveries.
-
-- [ ] **[#5](https://github.com/merelyacryptid/moodie/issues/5) Progressive Web App (PWA) & Offline Mobile Installation** *(Recommended)*
-  - Add web app manifest, service worker caching, and home-screen icons so moodie functions seamlessly as a native-feeling mobile app on iOS and Android.
-
-- [ ] **[#6](https://github.com/merelyacryptid/moodie/issues/6) Custom Habit Management & Color Customization** 
-  - Allow users to create new habits that correspond to their custom activity chips, complete with custom pastel colors and icons.
-
-- [ ] **[#7](https://github.com/merelyacryptid/moodie/issues/7) Obsidian & Markdown Daily Notes Export** 
-  - Export reflections directly into Obsidian-compatible Markdown daily notes with YAML frontmatter, tags, and formatted journal entries.
-
-- [x] **[#8](https://github.com/merelyacryptid/moodie/issues/8) Tactile Keyboard Shortcuts & Quick-Log Mode**
-  - Support numeric keys (`1`–`5`) for rating stars, arrow keys for time slots, and `Cmd`/`Ctrl` + `Enter` for instant saving.
-
-- [ ] **[#9](https://github.com/merelyacryptid/moodie/issues/9) Codebase Health & React 19 Linting Cleanup** *(Recommended)*
-  - Resolve cascading `useEffect` state updates in `TodayPage.tsx` and eliminate remaining loose `any` types for rock-solid type safety.
-
----
-
-## 📄 License
-
-This project is open-source under the [MIT License](LICENSE).
+MIT
