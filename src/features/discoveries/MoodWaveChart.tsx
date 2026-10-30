@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import type { TimelinePoint } from "@/lib/discoveries"
-import { moodToEmoji } from "@/types"
+import { TrendingUp, Star } from "lucide-react"
 
 interface MoodWaveChartProps {
   timeline: TimelinePoint[]
@@ -227,7 +227,9 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
   if (timeline.length < 2) {
     return (
       <div className="bg-white rounded-3xl p-6 shadow-xs border border-stone-100 flex flex-col items-center justify-center text-center py-10 space-y-2">
-        <span className="text-3xl animate-bounce">🌊</span>
+        <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-500 mb-1">
+          <TrendingUp className="w-5 h-5" />
+        </div>
         <h4 className="font-semibold text-stone-700 text-sm">Your Mood Wave</h4>
         <p className="text-xs text-stone-400 max-w-xs">
           Log at least 2 reflections to watch your personal mood wave begin to flow.
@@ -245,7 +247,7 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-lg">🌊</span>
+            <TrendingUp className="w-4 h-4 text-amber-500" />
             <h3 className="font-semibold text-stone-800 text-sm">Mood Wave Over Time</h3>
           </div>
           <p className="text-[11px] text-stone-400">
@@ -255,7 +257,7 @@ export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
 
         {/* Selected / Latest inspection pill */}
         <div className="flex items-center gap-2 bg-amber-50/80 border border-amber-200/60 rounded-2xl px-3 py-1 text-xs">
-          <span className="text-base">{moodToEmoji(currentDisplayPoint.mood)}</span>
+          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
           <div className="leading-tight">
             <span className="font-bold text-amber-900">{currentDisplayPoint.mood} / 5</span>
             <span className="text-[10px] text-amber-700/80 ml-1.5 capitalize">

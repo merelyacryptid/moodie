@@ -298,11 +298,11 @@ export function calculateDiscoveries(entries: Entry[]): EnhancedDiscoveriesData 
     const diff = Math.round((avgMoodGoodSleep - avgMoodPoorSleep) * 10) / 10
     let insight = ""
     if (diff >= 0.3) {
-      insight = `You seem to feel noticeably brighter on days after 7+ hours of sleep (averaging ${avgMoodGoodSleep} ⭐ vs ${avgMoodPoorSleep} ⭐ with less sleep).`
+      insight = `You seem to feel noticeably brighter on days after 7+ hours of sleep (averaging ${avgMoodGoodSleep}/5 vs ${avgMoodPoorSleep}/5 with less sleep).`
     } else if (diff <= -0.3) {
-      insight = `Interestingly, your ratings were slightly higher on days with 6 or fewer hours of sleep (${avgMoodPoorSleep} ⭐ vs ${avgMoodGoodSleep} ⭐).`
+      insight = `Interestingly, your ratings were slightly higher on days with 6 or fewer hours of sleep (${avgMoodPoorSleep}/5 vs ${avgMoodGoodSleep}/5).`
     } else {
-      insight = `Your mood appears consistent whether you get 7+ hours (${avgMoodGoodSleep} ⭐) or less sleep (${avgMoodPoorSleep} ⭐).`
+      insight = `Your mood appears consistent whether you get 7+ hours (${avgMoodGoodSleep}/5) or less sleep (${avgMoodPoorSleep}/5).`
     }
 
     correlations.push({
@@ -345,9 +345,9 @@ export function calculateDiscoveries(entries: Entry[]): EnhancedDiscoveriesData 
 
     let insight = ""
     if (diff >= 0.3) {
-      insight = `Physical movement (exercise, walking, yoga) seems to lift your energy by +${diff} ⭐ on average (${activeEnergy} ⭐ vs ${restEnergy} ⭐ on rest days).`
+      insight = `Physical movement (exercise, walking, yoga) seems to lift your energy by +${diff} on average (${activeEnergy}/5 vs ${restEnergy}/5 on rest days).`
     } else {
-      insight = `Your energy stays steady across active days (${activeEnergy} ⭐) and quieter rest days (${restEnergy} ⭐).`
+      insight = `Your energy stays steady across active days (${activeEnergy}/5) and quieter rest days (${restEnergy}/5).`
     }
 
     correlations.push({
@@ -414,7 +414,7 @@ export function calculateDiscoveries(entries: Entry[]): EnhancedDiscoveriesData 
 
     let insight = ""
     if (diff >= 0.3) {
-      insight = `Staying well-hydrated (2L+) coincides with higher energy reflections (${highEnergy} ⭐ vs ${lowEnergy} ⭐).`
+      insight = `Staying well-hydrated (2L+) coincides with higher energy reflections (${highEnergy}/5 vs ${lowEnergy}/5).`
     } else {
       insight = `Your energy holds steady across different hydration levels (${mostCommonWater} is your most frequent choice).`
     }
@@ -449,7 +449,7 @@ export function calculateDiscoveries(entries: Entry[]): EnhancedDiscoveriesData 
       icon: bestActivityItem.icon || "✨",
       title: "Things That Seem to Help",
       hasEnoughData: true,
-      insight: `${bestActivityItem.name} often appears on your happiest days (averaging ${bestActivityItem.avgMood} ⭐, a ${bestActivityItem.moodLift >= 0 ? "+" : ""}${bestActivityItem.moodLift} boost).`,
+      insight: `${bestActivityItem.name} often appears on your happiest days (averaging ${bestActivityItem.avgMood}/5, a ${bestActivityItem.moodLift >= 0 ? "+" : ""}${bestActivityItem.moodLift} boost).`,
       details: `Logged in ${bestActivityItem.count} reflections`,
     })
   } else {

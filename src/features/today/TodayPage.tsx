@@ -29,7 +29,7 @@ import { StarRating } from "@/components/StarRating"
 import { ActivityChip } from "@/components/ActivityChip"
 import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal"
 import { ACTIVITIES, WATER_LEVELS, type Entry } from "@/types"
-import { getLocalDateString } from "@/lib/utils"
+import { getLocalDateString, cn } from "@/lib/utils"
 import {
   db,
   saveEntry,
@@ -188,6 +188,22 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
 
   // Version / Theme Modal State
   const [showThemeModal, setShowThemeModal] = useState(false)
+
+  // Floating Tools Menu State (Bottom Right)
+  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false)
+  const toolsMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close tools menu on click outside
+  useEffect(() => {
+    if (!isToolsMenuOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
+        setIsToolsMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isToolsMenuOpen])
 
   // Direct QR/Sync Link Auto-Pairing and Background Sync
   useEffect(() => {
@@ -594,6 +610,8 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         setShowDeleteDayConfirm(false)
         setCustomizingPrompts(false)
         setShowAddInput(false)
+        setShowThemeModal(false)
+        setIsToolsMenuOpen(false)
         return
       }
 
@@ -813,46 +831,6 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
             aria-label={userName ? `Rename (${userName})` : "Set your name"}
           >
             <Pencil className="w-3.5 h-3.5" />
-          </button>
-          {onShowWelcome && (
-            <button
-              onClick={onShowWelcome}
-              title="Open the crowd"
-              aria-label="Open the crowd"
-              className="text-stone-400 hover:text-amber-500 transition-transform hover:scale-110 p-0.5 cursor-pointer"
-            >
-              <Users className="w-5 h-5 text-stone-400 hover:text-amber-500" />
-            </button>
-          )}
-          <button
-            onClick={() => setShowThemeModal(true)}
-            title="Choose Theme / Version"
-            aria-label="Choose Theme / Version"
-            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
-          >
-            <Palette className="w-5 h-5 text-stone-400 hover:text-amber-500" />
-          </button>
-          <button
-            onClick={() => setShowBackup(true)}
-            title="Local Data & Backup"
-            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
-          >
-            <ShieldCheck className="w-5 h-5 text-stone-400 hover:text-amber-500" />
-          </button>
-          <button
-            onClick={() => setShowSyncModal(true)}
-            title="Cross-Device Sync (QR & 12 Words)"
-            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
-          >
-            <RefreshCw className="w-5 h-5 text-stone-400 hover:text-amber-500" />
-          </button>
-          <button
-            onClick={() => setShowShortcutsModal(true)}
-            title="Keyboard Shortcuts (?)"
-            aria-label="Keyboard shortcuts"
-            className="text-stone-400 hover:text-amber-600 transition-transform hover:scale-110 p-0.5 cursor-pointer"
-          >
-            <Keyboard className="w-5 h-5 text-stone-400 hover:text-amber-500" />
           </button>
         </div>
       </div>
@@ -1670,6 +1648,129 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         open={showThemeModal}
         onClose={() => setShowThemeModal(false)}
       />
+
+      {/* Floating Collapsible Tools Menu (Bottom Right) */}
+      <div
+        ref={toolsMenuRef}
+        className="fixed bottom-20 right-4 sm:right-6 md:right-8 z-40 flex flex-col items-end gap-2"
+      >
+        {isToolsMenuOpen && (
+          <div className="flex flex-col items-end gap-2 mb-1 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            {onShowWelcome && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-stone-600 bg-white/95 px-2.5 py-1 rounded-xl shadow-xs border border-stone-200/80 pointer-events-none select-none">
+                  Open Crowd
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsToolsMenuOpen(false)
+                    onShowWelcome()
+                  }}
+                  title="Open the crowd"
+                  aria-label="Open the crowd"
+                  className="w-10 h-10 rounded-full bg-white/95 text-stone-500 hover:text-amber-600 hover:bg-amber-50 shadow-md border border-stone-200/80 flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+                >
+                  <Users className="w-4 h-4 text-stone-500 hover:text-amber-600" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-stone-600 bg-white/95 px-2.5 py-1 rounded-xl shadow-xs border border-stone-200/80 pointer-events-none select-none">
+                Theme
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsToolsMenuOpen(false)
+                  setShowThemeModal(true)
+                }}
+                title="Choose Theme / Version"
+                aria-label="Choose Theme / Version"
+                className="w-10 h-10 rounded-full bg-white/95 text-stone-500 hover:text-amber-600 hover:bg-amber-50 shadow-md border border-stone-200/80 flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <Palette className="w-4 h-4 text-stone-500 hover:text-amber-600" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-stone-600 bg-white/95 px-2.5 py-1 rounded-xl shadow-xs border border-stone-200/80 pointer-events-none select-none">
+                Backup & Data
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsToolsMenuOpen(false)
+                  setShowBackup(true)
+                }}
+                title="Local Data & Backup"
+                aria-label="Local Data & Backup"
+                className="w-10 h-10 rounded-full bg-white/95 text-stone-500 hover:text-amber-600 hover:bg-amber-50 shadow-md border border-stone-200/80 flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-stone-500 hover:text-amber-600" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-stone-600 bg-white/95 px-2.5 py-1 rounded-xl shadow-xs border border-stone-200/80 pointer-events-none select-none">
+                Device Sync
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsToolsMenuOpen(false)
+                  setShowSyncModal(true)
+                }}
+                title="Cross-Device Sync (QR & 12 Words)"
+                aria-label="Cross-Device Sync"
+                className="w-10 h-10 rounded-full bg-white/95 text-stone-500 hover:text-amber-600 hover:bg-amber-50 shadow-md border border-stone-200/80 flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4 text-stone-500 hover:text-amber-600" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-stone-600 bg-white/95 px-2.5 py-1 rounded-xl shadow-xs border border-stone-200/80 pointer-events-none select-none">
+                Shortcuts (?)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsToolsMenuOpen(false)
+                  setShowShortcutsModal(true)
+                }}
+                title="Keyboard Shortcuts (?)"
+                aria-label="Keyboard Shortcuts"
+                className="w-10 h-10 rounded-full bg-white/95 text-stone-500 hover:text-amber-600 hover:bg-amber-50 shadow-md border border-stone-200/80 flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <Keyboard className="w-4 h-4 text-stone-500 hover:text-amber-600" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Trigger Button */}
+        <button
+          type="button"
+          onClick={() => setIsToolsMenuOpen((prev) => !prev)}
+          title={isToolsMenuOpen ? "Close menu" : "Quick actions & settings"}
+          aria-label={isToolsMenuOpen ? "Close menu" : "Quick actions & settings"}
+          aria-expanded={isToolsMenuOpen}
+          className={cn(
+            "w-11 h-11 rounded-full shadow-md border flex items-center justify-center transition-all duration-200 cursor-pointer backdrop-blur-md active:scale-95 hover:scale-105",
+            isToolsMenuOpen
+              ? "bg-stone-800 text-stone-100 border-stone-700 shadow-lg"
+              : "bg-white/95 text-stone-500 hover:text-amber-600 hover:border-amber-200 border-stone-200/80"
+          )}
+        >
+          {isToolsMenuOpen ? (
+            <X className="w-5 h-5 transition-transform duration-200" />
+          ) : (
+            <SlidersHorizontal className="w-4 h-4 transition-transform duration-200" />
+          )}
+        </button>
+      </div>
     </div>
   )
 }

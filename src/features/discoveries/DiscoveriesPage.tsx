@@ -8,8 +8,24 @@ import { generateMockEntries } from "@/lib/mockData"
 import { MockDataNotice } from "@/components/MockDataNotice"
 import { MoodWaveChart } from "./MoodWaveChart"
 import { ActivityCharts } from "./ActivityCharts"
-import { Star, Flame, Trophy, Sparkles } from "lucide-react"
+import { Star, Flame, Trophy, Sparkles, Moon, Activity, Calendar, Droplets, Compass } from "lucide-react"
 import { useUserName } from "@/hooks/useUserName"
+
+function getCorrelationIcon(id: string) {
+  switch (id) {
+    case "sleep_mood":
+      return <Moon className="w-3.5 h-3.5 text-indigo-500" />
+    case "movement_energy":
+      return <Activity className="w-3.5 h-3.5 text-emerald-500" />
+    case "weekday_rhythm":
+      return <Calendar className="w-3.5 h-3.5 text-amber-500" />
+    case "hydration_energy":
+      return <Droplets className="w-3.5 h-3.5 text-sky-500" />
+    case "anchor_activity":
+    default:
+      return <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+  }
+}
 
 export function DiscoveriesPage() {
   const { name: userName } = useUserName()
@@ -99,7 +115,7 @@ export function DiscoveriesPage() {
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-sm font-semibold text-stone-700 flex items-center gap-1.5">
-            <span>✨</span>
+            <Compass className="w-4 h-4 text-amber-500" />
             <span>Discovered Connections</span>
           </h2>
           <span className="text-[11px] text-stone-400">Honest pattern insights</span>
@@ -123,7 +139,9 @@ export function DiscoveriesPage() {
                   {/* Card Header: Icon + Title + Status Badge */}
                   <div className="flex items-center justify-between gap-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{card.icon}</span>
+                      <div className="w-7 h-7 rounded-xl bg-amber-50/80 border border-amber-200/50 flex items-center justify-center shrink-0">
+                        {getCorrelationIcon(card.id)}
+                      </div>
                       <h3 className="font-semibold text-stone-800 text-xs">{card.title}</h3>
                     </div>
 

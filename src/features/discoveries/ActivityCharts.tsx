@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { BarChart3, Star } from "lucide-react"
 import type { ActivityStat } from "@/lib/discoveries"
 
 interface ActivityChartsProps {
@@ -29,7 +30,9 @@ export function ActivityCharts({
   if (activityStats.length === 0) {
     return (
       <div className="bg-white rounded-3xl p-6 shadow-xs border border-stone-100 text-center py-8 space-y-2">
-        <span className="text-3xl">🌱</span>
+        <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-500 mx-auto mb-1">
+          <BarChart3 className="w-5 h-5" />
+        </div>
         <h4 className="font-semibold text-stone-700 text-sm">Activities in Your Days</h4>
         <p className="text-xs text-stone-400 max-w-xs mx-auto">
           Tag activities in today&apos;s reflection to watch visual habits and mood associations appear here.
@@ -53,7 +56,7 @@ export function ActivityCharts({
       {/* Header with Switcher Tabs */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-lg">📊</span>
+          <BarChart3 className="w-4 h-4 text-amber-500" />
           <div>
             <h3 className="font-semibold text-stone-800 text-sm">Activities & Impact</h3>
             <p className="text-[11px] text-stone-400">Visual patterns across your daily habits</p>
@@ -131,7 +134,7 @@ export function ActivityCharts({
         <div className="space-y-3 pt-1">
           <div className="flex justify-between items-center text-[11px] text-stone-400 font-medium px-1">
             <span>Activity</span>
-            <span>Avg Mood & Difference (Baseline {globalAvgMood}★)</span>
+            <span>Avg Mood & Difference (Baseline {globalAvgMood} / 5)</span>
           </div>
 
           <div className="space-y-2.5">
@@ -141,10 +144,10 @@ export function ActivityCharts({
               const isPositiveLift = activity.moodLift > 0
               const liftLabel =
                 activity.moodLift > 0
-                  ? `+${activity.moodLift}★`
+                  ? `+${activity.moodLift}`
                   : activity.moodLift < 0
-                  ? `${activity.moodLift}★`
-                  : "0★"
+                  ? `${activity.moodLift}`
+                  : "0"
 
               return (
                 <div key={activity.name} className="space-y-1">
@@ -155,7 +158,10 @@ export function ActivityCharts({
                     </span>
 
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-stone-700">{activity.avgMood}★</span>
+                      <span className="font-semibold text-stone-700 flex items-center gap-0.5">
+                        {activity.avgMood}
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400 inline" />
+                      </span>
                       <span
                         className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                           isPositiveLift
