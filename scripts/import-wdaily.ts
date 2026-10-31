@@ -1,9 +1,12 @@
-// @ts-nocheck
+
+// @ts-expect-error Node.js types may not be installed in this project.
 import { readFileSync, readdirSync } from "fs"
+// @ts-expect-error Node.js types may not be installed in this project.
 import { join } from "path"
 import { PrismaClient } from "../src/generated/prisma/client"
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3"
-
+// @ts-expect-error Node.js types may not be installed in this project.
+import process from "process"
 const adapter = new PrismaBetterSqlite3({ url: "file:./dev.db" })
 const prisma = new PrismaClient({ adapter })
 
@@ -199,7 +202,7 @@ async function importFile(filePath: string, filename: string): Promise<number> {
 
 async function main() {
   const files = readdirSync(WDAILY_DIR).filter(
-    (f) => f.endsWith(".md") && !["template.md", "July.md", "workout.md"].includes(f) && !f.includes("prompt")
+    (f: string) => f.endsWith(".md") && !["template.md", "July.md", "workout.md"].includes(f) && !f.includes("prompt")
   )
   console.log(`Found ${files.length} wdaily files\n`)
 

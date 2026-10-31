@@ -28,11 +28,16 @@ import {
 import { StarRating } from "@/components/StarRating"
 import { ActivityChip } from "@/components/ActivityChip"
 import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal"
+<<<<<<< HEAD
+import { ACTIVITIES, TimeOfDay, WATER_LEVELS, type Entry } from "@/types"
+import { getLocalDateString } from "@/lib/utils"
+=======
 import { ACTIVITIES, WATER_LEVELS, type Entry } from "@/types"
 import { getLocalDateString, cn } from "@/lib/utils"
+>>>>>>> upstream/main
 import {
   db,
-  saveEntry,
+  saveEntry, 
   autoSyncHabit,
   migrateFromSQLiteIfEmpty,
   requestPersistentStorage,
@@ -246,10 +251,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
   }, [date])
 
   useEffect(() => {
-    setLoading(true)
-    setSaved(false)
-    setError("")
-    setDrafts({})
+
     const tod = getDefaultTimeOfDay()
 
     db.entries
@@ -506,7 +508,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
       await saveEntry({
         id: entry.id,
         date: entry.date,
-        timeOfDay: entry.timeOfDay as any,
+        timeOfDay: entry.timeOfDay as TimeOfDay,
         mood: entry.mood,
         energy: entry.energy,
         activityLevel: entry.activityLevel,
@@ -818,7 +820,7 @@ export function TodayPage({ onShowWelcome }: { onShowWelcome?: () => void } = {}
         )}
         <div className="flex items-center justify-center gap-2 mt-1">
           <h1 className="text-2xl font-semibold text-stone-700">
-            {userName ? `${timeGreeting}, ${userName}` : "Today's Reflection"}
+            {userName ? `${timeGreeting}, ${userName}` : "Today&apos;s Reflection"}
           </h1>
           <button
             type="button"

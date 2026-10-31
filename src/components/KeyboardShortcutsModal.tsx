@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect } from "react"
-import { X, Sparkles, Command } from "lucide-react"
+// @ts-expect-error lucide-react declarations are unavailable in this project
+
+import { X, Sparkles } from "lucide-react"
 
 interface KeyboardShortcutsModalProps {
   open: boolean

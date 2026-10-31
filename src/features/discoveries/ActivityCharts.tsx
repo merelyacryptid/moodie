@@ -138,7 +138,7 @@ export function ActivityCharts({
           </div>
 
           <div className="space-y-2.5">
-            {sortedByMood.map((activity, idx) => {
+            {sortedByMood.map((activity) => {
               // Mood is 1 to 5, mapped to 0% to 100%
               const moodPercent = Math.round(((activity.avgMood - 1) / 4) * 100)
               const isPositiveLift = activity.moodLift > 0

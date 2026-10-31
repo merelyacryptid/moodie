@@ -79,7 +79,7 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
     const raw = propUserName ?? propName ?? hookUserName
     if (typeof raw === "string") return raw.trim()
     if (typeof raw === "object" && raw && "name" in raw) {
-      return String((raw as any).name || "").trim()
+      return String((raw as { name?: string }).name || "").trim()
     }
     return ""
   }, [propUserName, propName, hookUserName])
@@ -343,7 +343,7 @@ export function CalendarPage({ name: propName, userName: propUserName }: Calenda
                         {entry.activities && entry.activities.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {entry.activities.map((act) => {
-                              const name = typeof act === "string" ? act : (act as any).activity?.name
+                              const name = typeof act === "string" ? act : (act as { activity?: { name: string } }).activity?.name
                               if (!name) return null
                               return (
                                 <span key={name} className="text-xs bg-amber-100/80 text-amber-900 rounded-full px-2.5 py-0.5 font-medium">
