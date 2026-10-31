@@ -85,14 +85,13 @@ function BackgroundHeadNode({ head, mouse }: { head: Head; mouse: Point }) {
 }
 
 export function EyeBackground() {
-  const [mounted, setMounted] = useState(false)
+  const [mounted] = useState(false)
   const [viewport, setViewport] = useState({ width: 1200, height: 800 })
   const [mousePos, setMousePos] = useState<Point>({ x: 600, y: 400 })
   const lastUpdateRef = useRef(0)
   const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
-    setMounted(true)
     const updateSize = () => {
       setViewport({ width: window.innerWidth, height: window.innerHeight })
       setMousePos((prev) => ({

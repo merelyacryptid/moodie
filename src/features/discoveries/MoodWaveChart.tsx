@@ -71,7 +71,7 @@ interface MonthSpan {
   x: number
 }
 
-export function MoodWaveChart({ timeline, avgMood }: MoodWaveChartProps) {
+export function MoodWaveChart({ timeline }: MoodWaveChartProps) {
   const [animated, setAnimated] = useState(false)
   const [activePoint, setActivePoint] = useState<TimelinePoint | null>(null)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)

@@ -1,38 +1,74 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { TodayPage } from "@/features/today/TodayPage"
 import { WelcomePage } from "@/features/welcome/WelcomePage"
 
+const welcomeListeners = new Set<() => void>()
+let sessionEnteredInMemory = false
+
+function subscribeToWelcomeState(listener: () => void) {
+  welcomeListeners.add(listener)
+  return () => welcomeListeners.delete(listener)
+}
+
+function getWelcomeState() {
+  if (sessionEnteredInMemory || new URLSearchParams(window.location.search).has("date")) {
+    return true
+  }
+
+  try {
+    return Boolean(sessionStorage.getItem("moodie-session-entered"))
+  } catch {
+    return false
+  }
+}
+
+function notifyWelcomeStateChanged() {
+  welcomeListeners.forEach((listener) => listener())
+}
+
 export default function Home() {
-  const [showWelcome, setShowWelcome] = useState(true)
-  const [mounted, setMounted] = useState(false)
+  const [showWelcomeOverride, setShowWelcomeOverride] = useState<boolean | null>(null)
+  const sessionEntered = useSyncExternalStore(
+    subscribeToWelcomeState,
+    getWelcomeState,
+    () => false,
+  )
 
   useEffect(() => {
-    setMounted(true)
-    // If navigating directly with a date/timeOfDay to edit, bypass the welcome screen
     try {
       const params = new URLSearchParams(window.location.search)
-      if (params.get("date")) {
-        setShowWelcome(false)
+      if (params.has("date")) {
         sessionStorage.setItem("moodie-session-entered", "true")
-        return
+        sessionEnteredInMemory = true
+        notifyWelcomeStateChanged()
       }
-      const sessionEntered = sessionStorage.getItem("moodie-session-entered")
-      if (sessionEntered) setShowWelcome(false)
-    } catch {}
+    } catch {
+      // The URL still indicates that the user has entered, even when storage is unavailable.
+    }
   }, [])
 
   const handleStart = () => {
     try {
       sessionStorage.setItem("moodie-session-entered", "true")
-    } catch {}
-    setShowWelcome(false)
+    } catch {
+      // Keep the current session usable when browser storage is unavailable.
+    }
+    sessionEnteredInMemory = true
+    setShowWelcomeOverride(false)
+    notifyWelcomeStateChanged()
   }
 
-  if (!mounted) return null
+  const showWelcome = showWelcomeOverride ?? !sessionEntered
 
   if (showWelcome) return <WelcomePage onStart={handleStart} />
 
-  return <TodayPage onShowWelcome={() => setShowWelcome(true)} />
+  return (
+    <TodayPage
+      onShowWelcome={() => {
+        setShowWelcomeOverride(true)
+      }}
+    />
+  )
 }

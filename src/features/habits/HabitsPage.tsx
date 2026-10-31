@@ -1,17 +1,25 @@
-"use client"
+'use client'
 
-import { useState, useCallback, useMemo, useEffect } from "react"
-import { useLiveQuery } from "dexie-react-hooks"
-import { db, toggleHabitCompletion, DEFAULT_HABITS, ensureHabitsSeeded } from "@/lib/db"
-import type { Habit as DbHabit, HabitCompletion as DbHabitCompletion } from "@/types"
-import { HABIT_TO_ACTIVITIES } from "@/types"
-import { useUserName } from "@/hooks/useUserName"
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import {
+  db,
+  toggleHabitCompletion,
+  DEFAULT_HABITS,
+  ensureHabitsSeeded
+} from '@/lib/db'
+import type {
+  Habit as DbHabit,
+  HabitCompletion as DbHabitCompletion
+} from '@/types'
+import { HABIT_TO_ACTIVITIES } from '@/types'
+import { useUserName } from '@/hooks/useUserName'
 
 interface HabitWithCompletions extends DbHabit {
   completions: DbHabitCompletion[]
 }
 
-export function HabitsPage() {
+export function HabitsPage () {
   const { name: userName } = useUserName()
   const now = new Date()
   const [month] = useState(now.getMonth() + 1)
@@ -23,48 +31,51 @@ export function HabitsPage() {
   }, [])
 
   // Query live local habits, completions, and entries from IndexedDB
-  const liveHabits = useLiveQuery(() => db.habits.toArray(), []) || []
-  const liveCompletions = useLiveQuery(() => db.completions.toArray(), []) || []
-  const liveEntries = useLiveQuery(() => db.entries.toArray(), []) || []
+  const liveHabits = useLiveQuery(() => db.habits.toArray(), [])
+  const liveCompletions = useLiveQuery(() => db.completions.toArray(), [])
+  const liveEntries = useLiveQuery(() => db.entries.toArray(), [])
 
-  const effectiveHabits = liveHabits.length > 0 ? liveHabits : DEFAULT_HABITS
-
+  const effectiveHabits =
+    liveHabits && liveHabits.length > 0 ? liveHabits : DEFAULT_HABITS
   const habits: HabitWithCompletions[] = useMemo(() => {
     // Map entries by date for fast lookup of tagged activities
+
     const activitiesByDate = new Map<string, Set<string>>()
-    for (const e of liveEntries) {
+    for (const e of liveEntries ?? []) {
       if (!activitiesByDate.has(e.date)) {
         activitiesByDate.set(e.date, new Set())
       }
       const set = activitiesByDate.get(e.date)!
       if (Array.isArray(e.activities)) {
         for (const act of e.activities) {
-          const actName = typeof act === "string" ? act : (act as any).activity?.name
+          const actName =
+            typeof act === 'string'
+              ? act
+              : (act as { activity?: { name: string } }).activity?.name
           if (actName) set.add(actName.toLowerCase())
         }
       }
     }
 
-    return effectiveHabits.map((h) => {
+    return effectiveHabits.map(h => {
       const completedDates = new Set<string>()
 
       // 1. Auto-complete habit if matching activity was logged in today's (or any day's) reflections
-      const matchingActivities = (HABIT_TO_ACTIVITIES[h.name] || [h.name]).map((a) =>
-        a.toLowerCase()
+      const matchingActivities = (HABIT_TO_ACTIVITIES[h.name] || [h.name]).map(
+        a => a.toLowerCase()
       )
 
       for (const [dateStr, acts] of activitiesByDate.entries()) {
-        const hasMatchingActivity = matchingActivities.some((a) => acts.has(a))
+        const hasMatchingActivity = matchingActivities.some(a => acts.has(a))
         if (hasMatchingActivity) {
           completedDates.add(dateStr)
         }
       }
 
       // 2. Layer explicit completions from db.completions (matching by habit ID or name)
-      for (const c of liveCompletions) {
+      for (const c of liveCompletions ?? []) {
         const isMatch =
-          c.habitId === h.id ||
-          c.habitId.toLowerCase() === h.name.toLowerCase()
+          c.habitId === h.id || c.habitId.toLowerCase() === h.name.toLowerCase()
 
         if (isMatch) {
           if (c.completed === false) {
@@ -77,16 +88,18 @@ export function HabitsPage() {
         }
       }
 
-      const completions: DbHabitCompletion[] = Array.from(completedDates).map((date) => ({
-        id: `${h.id}-${date}`,
-        habitId: h.id,
-        date,
-        completed: true,
-      }))
+      const completions: DbHabitCompletion[] = Array.from(completedDates).map(
+        date => ({
+          id: `${h.id}-${date}`,
+          habitId: h.id,
+          date,
+          completed: true
+        })
+      )
 
       return {
         ...h,
-        completions,
+        completions
       }
     })
   }, [effectiveHabits, liveCompletions, liveEntries])
@@ -96,24 +109,31 @@ export function HabitsPage() {
   const completionMap = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const habit of habits) {
-      const completedDates = new Set(habit.completions.map((c) => c.date))
+      const completedDates = new Set(habit.completions.map(c => c.date))
       map.set(habit.id, completedDates)
     }
     return map
   }, [habits])
 
   const toggleHabit = useCallback(
-    async (habitId: string, day: number | string, currentCompleted: boolean) => {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    async (
+      habitId: string,
+      day: number | string,
+      currentCompleted: boolean
+    ) => {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(
+        day
+      ).padStart(2, '0')}`
       await toggleHabitCompletion(habitId, dateStr, !currentCompleted)
     },
     [month, year]
   )
 
-  function calcStreak(habit: HabitWithCompletions): { current: number; longest: number } {
-    const sorted = habit.completions
-      .map((c) => c.date)
-      .sort()
+  function calcStreak (habit: HabitWithCompletions): {
+    current: number
+    longest: number
+  } {
+    const sorted = habit.completions.map(c => c.date).sort()
 
     if (sorted.length === 0) return { current: 0, longest: 0 }
 
@@ -124,7 +144,9 @@ export function HabitsPage() {
     for (let i = 1; i < sorted.length; i++) {
       const prev = new Date(sorted[i - 1])
       const curr = new Date(sorted[i])
-      const diff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24))
+      const diff = Math.round(
+        (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24)
+      )
       if (diff === 1) {
         streak++
       } else if (diff > 1) {
@@ -135,9 +157,12 @@ export function HabitsPage() {
     longest = Math.max(longest, streak)
 
     // Check if today or yesterday is in the streak
-    const today = new Date().toISOString().split("T")[0]
+    const today = new Date().toISOString().split('T')[0]
     const lastDate = sorted[sorted.length - 1]
-    const diffFromToday = Math.round((new Date(today).getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24))
+    const diffFromToday = Math.round(
+      (new Date(today).getTime() - new Date(lastDate).getTime()) /
+        (1000 * 60 * 60 * 24)
+    )
     if (diffFromToday <= 1) {
       current = streak
     }
@@ -145,67 +170,81 @@ export function HabitsPage() {
     return { current, longest }
   }
 
-  function calcPercentage(habit: HabitWithCompletions): number {
-    const monthPrefix = `${year}-${String(month).padStart(2, "0")}`
-    const completed = habit.completions.filter((c) => c.date.startsWith(monthPrefix)).length
+  function calcPercentage (habit: HabitWithCompletions): number {
+    const monthPrefix = `${year}-${String(month).padStart(2, '0')}`
+    const completed = habit.completions.filter(c =>
+      c.date.startsWith(monthPrefix)
+    ).length
     return Math.round((completed / daysInMonth) * 100)
   }
 
   return (
-    <div className="space-y-4">
-      <div className="text-center space-y-0.5">
-        <h1 className="text-2xl font-semibold text-stone-700">
-          {userName ? `${userName}'s Habits` : "Habits"}
+    <div className='space-y-4'>
+      <div className='text-center space-y-0.5'>
+        <h1 className='text-2xl font-semibold text-stone-700'>
+          {userName ? `${userName}'s Habits` : 'Habits'}
         </h1>
-        <p className="text-xs text-stone-400">
+        <p className='text-xs text-stone-400'>
           Small everyday steps that seem to help
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100 overflow-x-auto">
-        <table className="w-full text-xs">
+      <div className='bg-white rounded-2xl p-3 shadow-sm border border-stone-100 overflow-x-auto'>
+        <table className='w-full text-xs'>
           <thead>
             <tr>
-              <th className="text-left text-stone-400 font-medium p-1 sticky left-0 bg-white min-w-[100px]">
+              <th className='text-left text-stone-400 font-medium p-1 sticky left-0 bg-white min-w-[100px]'>
                 Habit
               </th>
               {Array.from({ length: daysInMonth }, (_, i) => (
-                <th key={i} className="text-center text-stone-400 font-medium p-1 w-7">
+                <th
+                  key={i}
+                  className='text-center text-stone-400 font-medium p-1 w-7'
+                >
                   {i + 1}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {habits.map((habit) => {
+            {habits.map(habit => {
               const completedDates = completionMap.get(habit.id) || new Set()
-              const streak = calcStreak(habit)
+              // const streak = calcStreak(habit)
               const percentage = calcPercentage(habit)
 
               return (
                 <tr key={habit.id}>
-                  <td className="sticky left-0 bg-white p-1">
-                    <div className="flex items-center gap-1.5">
+                  <td className='sticky left-0 bg-white p-1'>
+                    <div className='flex items-center gap-1.5'>
                       <span>{habit.icon}</span>
-                      <span className="font-medium text-stone-700 text-xs">{habit.name}</span>
-                      <span className="text-[10px] text-stone-400 ml-auto">{percentage}%</span>
+                      <span className='font-medium text-stone-700 text-xs'>
+                        {habit.name}
+                      </span>
+                      <span className='text-[10px] text-stone-400 ml-auto'>
+                        {percentage}%
+                      </span>
                     </div>
                   </td>
                   {Array.from({ length: daysInMonth }, (_, i) => {
                     const day = i + 1
-                    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+                    const dateStr = `${year}-${String(month).padStart(
+                      2,
+                      '0'
+                    )}-${String(day).padStart(2, '0')}`
                     const completed = completedDates.has(dateStr)
                     return (
-                      <td key={day} className="text-center p-0.5">
+                      <td key={day} className='text-center p-0.5'>
                         <button
-                          onClick={() => toggleHabit(habit.id, day.toString(), completed)}
+                          onClick={() =>
+                            toggleHabit(habit.id, day.toString(), completed)
+                          }
                           className={`w-5 h-5 rounded-md transition-all duration-150 ${
                             completed
-                              ? "opacity-100 hover:opacity-80"
-                              : "opacity-30 hover:opacity-60"
+                              ? 'opacity-100 hover:opacity-80'
+                              : 'opacity-30 hover:opacity-60'
                           }`}
                           style={{
-                            backgroundColor: completed ? habit.color : "#e7e5e4",
+                            backgroundColor: completed ? habit.color : '#e7e5e4'
                           }}
                         />
                       </td>
@@ -218,18 +257,27 @@ export function HabitsPage() {
         </table>
       </div>
 
-      {habits.map((habit) => {
+      {habits.map(habit => {
         const streak = calcStreak(habit)
         return (
-          <div key={habit.id} className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <div
+            key={habit.id}
+            className='bg-white rounded-2xl p-3 shadow-sm border border-stone-100'
+          >
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
                 <span>{habit.icon}</span>
-                <span className="text-sm font-medium text-stone-700">{habit.name}</span>
+                <span className='text-sm font-medium text-stone-700'>
+                  {habit.name}
+                </span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-stone-500">
-                <span>🔥 {streak.current} day{streak.current !== 1 ? "s" : ""}</span>
-                <span>🏆 {streak.longest} day{streak.longest !== 1 ? "s" : ""}</span>
+              <div className='flex items-center gap-3 text-xs text-stone-500'>
+                <span>
+                  🔥 {streak.current} day{streak.current !== 1 ? 's' : ''}
+                </span>
+                <span>
+                  🏆 {streak.longest} day{streak.longest !== 1 ? 's' : ''}
+                </span>
               </div>
             </div>
           </div>

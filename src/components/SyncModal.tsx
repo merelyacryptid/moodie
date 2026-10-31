@@ -2,18 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import QRCode from "qrcode"
-import {
-  QrCode,
-  Key,
-  RefreshCw,
-  Copy,
-  Check,
-  Camera,
-  X,
-  ShieldCheck,
-  Smartphone,
-  Unlink,
-} from "lucide-react"
+// @ts-expect-error lucide-react declarations are unavailable in this project
+import { Key, RefreshCw, Copy, Check, Camera, X, Smartphone, Unlink } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
   generate12WordPhrase,
@@ -23,6 +13,7 @@ import {
   clearStoredSyncPhrase,
 } from "@/lib/sync/crypto"
 import { pullEncryptedSync, pushEncryptedSync } from "@/lib/sync/syncManager"
+import { Html5Qrcode } from "html5-qrcode"
 
 interface SyncModalProps {
   open: boolean
@@ -34,7 +25,9 @@ type SyncTab = "link" | "restore" | "camera"
 
 export function SyncModal({ open, onOpenChange, onSyncComplete }: SyncModalProps) {
   const [tab, setTab] = useState<SyncTab>("link")
-  const [phrase, setPhrase] = useState<string>("")
+  const [phrase, setPhrase] = useState<string>(() => {
+    return getStoredSyncPhrase() || ""
+  })
   const [qrDataUrl, setQrDataUrl] = useState<string>("")
   const [inputPhrase, setInputPhrase] = useState<string>("")
   const [copied, setCopied] = useState(false)
@@ -43,9 +36,8 @@ export function SyncModal({ open, onOpenChange, onSyncComplete }: SyncModalProps
   const [statusMessage, setStatusMessage] = useState<string>("")
   const [isError, setIsError] = useState(false)
   const [cameraError, setCameraError] = useState<string>("")
-  const html5QrCodeRef = useRef<any>(null)
+  const html5QrCodeRef = useRef<Html5Qrcode>(null)
 
-  // Initialize or load sync phrase
   useEffect(() => {
     if (!open) return
 
@@ -54,7 +46,6 @@ export function SyncModal({ open, onOpenChange, onSyncComplete }: SyncModalProps
       current = generate12WordPhrase()
       setStoredSyncPhrase(current)
     }
-    setPhrase(current)
 
     // Generate QR Code containing sync link
     if (typeof window !== "undefined") {
@@ -75,12 +66,7 @@ export function SyncModal({ open, onOpenChange, onSyncComplete }: SyncModalProps
   }, [open])
 
   // Stop camera when modal closes or switching tabs
-  useEffect(() => {
-    return () => {
-      stopCameraScanner()
-    }
-  }, [])
-
+  
   const stopCameraScanner = async () => {
     if (html5QrCodeRef.current) {
       try {
@@ -91,6 +77,11 @@ export function SyncModal({ open, onOpenChange, onSyncComplete }: SyncModalProps
     }
   }
 
+    useEffect(() => {
+      return () => {
+        stopCameraScanner()
+      }
+    }, [])
   const startCameraScanner = async () => {
     setTab("camera")
     setCameraError("")
@@ -311,18 +302,21 @@ export function SyncModal({ open, onOpenChange, onSyncComplete }: SyncModalProps
               </p>
               {qrDataUrl ? (
                 <div className="p-2.5 bg-white rounded-2xl shadow-xs border border-stone-200/80">
+                  <picture>
                   <img
                     src={qrDataUrl}
                     alt="Moodie Sync QR Code"
                     className="w-44 h-44 rounded-xl"
+                    
                   />
+                  </picture>
                 </div>
               ) : (
                 <div className="w-44 h-44 flex items-center justify-center bg-stone-100 rounded-2xl text-stone-400 text-xs">
                   Generating QR...
                 </div>
               )}
-              <p className="text-[11px] text-stone-400 mt-2.5 leading-relaxed max-w-[220px]">
+              <p className="text-[11px] text-stone-400 mt-2.5 leading-relaxed max-w-220px">
                 Open Moodie on your phone and tap <b>Pair Existing Device</b> or scan directly with your camera.
               </p>
             </div>

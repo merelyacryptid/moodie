@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable, type Table } from "dexie"
 import type { Entry, Habit, HabitCompletion } from "@/types"
 import { ACTIVITY_TO_HABIT, HABIT_TO_ACTIVITIES } from "@/types"
+import { ServerActivity, ServerEntry } from "./discoveries"
 
 export const db = new Dexie("moodie") as Dexie & {
   entries: EntityTable<Entry, "id">
@@ -157,7 +158,7 @@ export async function migrateFromSQLiteIfEmpty(): Promise<boolean> {
     const serverEntries = await res.json()
     if (!Array.isArray(serverEntries) || serverEntries.length === 0) return false
 
-    const formattedEntries: Entry[] = serverEntries.map((e: any) => ({
+    const formattedEntries: Entry[] = serverEntries.map((e: ServerEntry) => ({
       id: e.id || crypto.randomUUID(),
       date: e.date,
       timeOfDay: e.timeOfDay || "morning",
@@ -170,7 +171,7 @@ export async function migrateFromSQLiteIfEmpty(): Promise<boolean> {
       note: e.note || null,
       journal: e.journal || null,
       activities: Array.isArray(e.activities)
-        ? e.activities.map((a: any) => (typeof a === "string" ? a : a.activity?.name || ""))
+        ? e.activities.map((a: string | ServerActivity) => (typeof a === "string" ? a : a.activity?.name || ""))
         : [],
       loggedAt: e.loggedAt ? new Date(e.loggedAt).getTime() : Date.now(),
     }))
@@ -252,7 +253,7 @@ export async function exportBackup(): Promise<void> {
   try {
     const { loadJournalPrompts } = await import("@/lib/prompts")
     prompts = loadJournalPrompts()
-  } catch {}
+  } catch { }
 
   const backupData = {
     app: "moodie",
@@ -298,7 +299,7 @@ export async function importBackup(jsonString: string): Promise<{ success: boole
       try {
         const { saveJournalPrompts } = await import("@/lib/prompts")
         saveJournalPrompts(data.prompts)
-      } catch {}
+      } catch { }
     }
 
     return { success: true, count: data.entries.length }

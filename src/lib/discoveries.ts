@@ -1,4 +1,4 @@
-import type { Entry } from "@/types"
+import type { Entry, TimeOfDay } from "@/types"
 
 export const ACTIVITY_ICONS: Record<string, string> = {
   Reading: "📖",
@@ -26,7 +26,27 @@ export const ACTIVITY_ICONS: Record<string, string> = {
   Travel: "✈️",
   Coding: "💻",
 }
+export interface ServerActivity {
+  activity: {
+    name: string;
+  };
+}
 
+export interface ServerEntry {
+  id: string | null;
+  date: string;
+  timeOfDay:TimeOfDay | null;
+  mood: string | number | null;
+  energy: string | number | null;
+  activityLevel: string | number | null;
+  sleepHours: string | number | null;
+  waterLevel: string | null;
+  stress: string | number | null;
+  note: string | null;
+  journal: string | null;
+  activities: Array<string | ServerActivity> | null;
+  loggedAt: string | number | Date | null;
+}
 export interface TimelinePoint {
   id: string
   date: string
@@ -160,7 +180,7 @@ export function calculateDiscoveries(entries: Entry[]): EnhancedDiscoveriesData 
   const totalReflections = validEntries.length
   const avgMood = Math.round((validEntries.reduce((s, e) => s + e.mood, 0) / totalReflections) * 10) / 10
   const avgEnergy = Math.round((validEntries.reduce((s, e) => s + (e.energy || 0), 0) / totalReflections) * 10) / 10
-  
+
   const entriesWithSleep = validEntries.filter((e) => (e.sleepHours || 0) > 0)
   const avgSleep = entriesWithSleep.length > 0
     ? Math.round((entriesWithSleep.reduce((s, e) => s + e.sleepHours, 0) / entriesWithSleep.length) * 10) / 10
@@ -204,7 +224,7 @@ export function calculateDiscoveries(entries: Entry[]): EnhancedDiscoveriesData 
   const activityMap: Record<string, { count: number; totalMood: number; totalEnergy: number }> = {}
   for (const entry of validEntries) {
     for (const act of (entry.activities || [])) {
-      const name = typeof act === "string" ? act : (act as any).activity?.name
+      const name = typeof act === "string" ? act : (act as {activity?: {name?: string}}).activity?.name
       if (!name) continue
       if (!activityMap[name]) {
         activityMap[name] = { count: 0, totalMood: 0, totalEnergy: 0 }
@@ -331,10 +351,10 @@ export function calculateDiscoveries(entries: Entry[]): EnhancedDiscoveriesData 
   // 2. Movement & Energy Correlation
   const movementActivities = new Set(["Exercise", "Walking", "Running", "Gym", "Yoga"])
   const activeDays = validEntries.filter((e) =>
-    (e.activities || []).some((act) => movementActivities.has(typeof act === "string" ? act : (act as any).activity?.name))
+    (e.activities || []).some((act) => movementActivities.has(typeof act === "string" ? act : ((act as { activity?: { name?: string } }).activity?.name ?? "")))
   )
   const restDays = validEntries.filter((e) =>
-    !(e.activities || []).some((act) => movementActivities.has(typeof act === "string" ? act : (act as any).activity?.name))
+    !(e.activities || []).some((act) => movementActivities.has(typeof act === "string" ? act : (act as {activity?: {name?: string}}).activity?.name ?? ""))
   )
 
   const hasMovementData = activeDays.length >= 2 && restDays.length >= 2
