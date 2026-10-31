@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { TodayPage } from "@/features/today/TodayPage"
 import { WelcomePage } from "@/features/welcome/WelcomePage"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 const welcomeListeners = new Set<() => void>()
 let sessionEnteredInMemory = false
@@ -62,6 +63,7 @@ export default function Home() {
 
   const showWelcome = showWelcomeOverride ?? !sessionEntered
 
+<<<<<<< HEAD
   if (showWelcome) return <WelcomePage onStart={handleStart} />
 
   return (
@@ -70,5 +72,15 @@ export default function Home() {
         setShowWelcomeOverride(true)
       }}
     />
+=======
+  return (
+    <ErrorBoundary>
+      {showWelcome ? (
+        <WelcomePage onStart={handleStart} />
+      ) : (
+        <TodayPage onShowWelcome={() => setShowWelcome(true)} />
+      )}
+    </ErrorBoundary>
+>>>>>>> upstream/main
   )
 }

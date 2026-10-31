@@ -139,6 +139,12 @@ export function generateMockEntries(): Entry[] {
       stress: 1,
       note: "Caught up on sleep, felt much lighter today.",
       activities: ["Reading", "Nature"],
+      journal: JSON.stringify({
+        p5: "1. Golden afternoon sunlight\n2. Fresh peppermint tea\n3. Quiet time without any notifications",
+        p6: "Slowing down actually helps me make better decisions than rushing.",
+        p_did_well: "Went for a 20-minute nature walk without checking my phone.",
+        p7: "A peaceful, restorative day that gave me space to breathe.",
+      }),
     },
     {
       daysAgo: 2,
@@ -151,6 +157,11 @@ export function generateMockEntries(): Entry[] {
       stress: 1,
       note: "Celebrated finishing a big milestone!",
       activities: ["Development", "Friends", "Music"],
+      journal: JSON.stringify({
+        p5: "1. Sharing good food with friends\n2. The feeling of completing a project\n3. Upbeat music playlist",
+        p_did_well: "Celebrated my own effort instead of just looking forward to the next task.",
+        p7: "Pure joy, laughter, and high energy from start to finish.",
+      }),
     },
     {
       daysAgo: 1,
@@ -175,6 +186,12 @@ export function generateMockEntries(): Entry[] {
       stress: 1,
       note: "Ready for a fresh, gentle day.",
       activities: ["Reading", "Exercise"],
+      journal: JSON.stringify({
+        p1: "Centered, rested, and ready for whatever the day brings.",
+        p3: "Sitting down with a book and quiet coffee this afternoon.",
+        p4: "Choosing patience when unexpected changes arise.",
+        p_goals: "Take meaningful pauses between tasks and drink enough water.",
+      }),
     },
   ]
 
@@ -191,7 +208,7 @@ export function generateMockEntries(): Entry[] {
       waterLevel: item.waterLevel,
       stress: item.stress,
       note: item.note,
-      journal: null,
+      journal: (item as any).journal || null,
       activities: item.activities,
       loggedAt: d.getTime(),
     }

@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { getDailyQuote } from "@/lib/quotes"
-import { Sparkles, ArrowRight, QrCode } from "lucide-react"
+import { Sparkles, ArrowRight, QrCode, Palette } from "lucide-react"
 import { getUserName, setUserName } from "@/lib/user"
 import { SyncModal } from "@/components/SyncModal"
+import { ThemeModal } from "@/components/ThemeModal"
 
 type Point = { x: number; y: number }
 
@@ -75,8 +76,8 @@ function HeadNode({
     Math.pow(head.x - viewport.width / 2, 2) + Math.pow(head.y - viewport.height * 0.44, 2)
   )
   const centerT = Math.min(1, Math.max(0, distFromCenter / CENTER_FADE_RADIUS))
-  // Opacity ranges from 0.45 near center to 1.0 towards edges
-  const opacity = 0.45 + centerT * 0.55
+  // Opacity ranges from 0.35 near center to 0.85 towards edges
+  const opacity = 0.35 + centerT * 0.5
 
   return (
     <div
@@ -92,23 +93,26 @@ function HeadNode({
       }}
     >
       <div
-        className="relative h-full w-full rounded-full border-[2.5px] border-stone-850 bg-transparent"
+        className="relative h-full w-full rounded-full border-[2px] bg-transparent"
         style={{
-          boxShadow: `0 0 0 1px rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.7)`,
+          borderColor: "var(--foreground)",
+          opacity: 0.35,
         }}
       >
         <span
-          className="absolute left-[23%] top-[27%] h-[4.5px] w-[4.5px] rounded-full bg-stone-900"
+          className="absolute left-[23%] top-[27%] h-[4.5px] w-[4.5px] rounded-full"
           style={{
-            opacity: 0.95 - head.sway * 0.15,
+            backgroundColor: "var(--foreground)",
+            opacity: 0.85 - head.sway * 0.15,
             transform: `translate(${pupilX}px, ${pupilY}px)`,
             transition: "transform 40ms cubic-bezier(0, 0, 0.2, 1)",
           }}
         />
         <span
-          className="absolute left-[45%] top-[27%] h-[4.5px] w-[4.5px] rounded-full bg-stone-900"
+          className="absolute left-[45%] top-[27%] h-[4.5px] w-[4.5px] rounded-full"
           style={{
-            opacity: 0.95 - head.sway * 0.15,
+            backgroundColor: "var(--foreground)",
+            opacity: 0.85 - head.sway * 0.15,
             transform: `translate(${pupilX}px, ${pupilY}px)`,
             transition: "transform 40ms cubic-bezier(0, 0, 0.2, 1)",
           }}
@@ -140,6 +144,7 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
     initialName ? "returning_welcome" : "first_welcome"
   )
   const [showSyncModal, setShowSyncModal] = useState(false)
+  const [showThemeModal, setShowThemeModal] = useState(false)
 
   // Typewriter text
   const targetText = initialName
@@ -222,7 +227,7 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
           <>
             <span>{typedText}</span>
             {isTyping && (
-              <span className="inline-block w-1 h-7 sm:h-9 bg-amber-400 ml-1.5 animate-pulse rounded-full" />
+              <span className="inline-block w-1 h-7 sm:h-9 bg-[var(--primary)] ml-1.5 animate-pulse rounded-full" />
             )}
           </>
         )
@@ -239,9 +244,37 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden bg-[#fdf7ec]">
+    <div className="fixed inset-0 z-[100] overflow-hidden bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
       {/* Background radial gradient to keep ambient warmth soft and balanced */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.35)_0%,rgba(253,247,236,0.3)_50%,rgba(253,247,236,0.85)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--card)_0%,transparent_75%)] opacity-40 pointer-events-none" />
+
+      {/* Top Header Bar for Theme & Sync Quick Access */}
+      <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 sm:p-6">
+        <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
+          <span className="font-semibold tracking-wider uppercase text-[10px]">moodie</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSyncModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--card)]/75 hover:bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] border border-[var(--border)] shadow-xs backdrop-blur-md transition-all cursor-pointer hover:scale-105"
+            title="Sync reflections across devices"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sync</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowThemeModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--card)]/75 hover:bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] border border-[var(--border)] shadow-xs backdrop-blur-md transition-all cursor-pointer hover:scale-105"
+            title="Choose Version"
+          >
+            <Palette className="w-3.5 h-3.5 text-[var(--primary)]" />
+            <span className="hidden sm:inline">Version</span>
+          </button>
+        </div>
+      </header>
 
       {/* Eyes Crowd Background */}
       <div className="absolute inset-0 pointer-events-none">
@@ -255,14 +288,14 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
         <div className="max-w-md w-full space-y-6">
           {/* Main Title Area */}
           <div className="space-y-2 select-none">
-            <h1 className="font-display text-4xl sm:text-5xl text-stone-900 tracking-tight min-h-[52px] sm:min-h-[60px] flex items-center justify-center">
+            <h1 className="font-display text-4xl sm:text-5xl text-[var(--foreground)] tracking-tight min-h-[52px] sm:min-h-[60px] flex items-center justify-center">
               {renderHeaderTitle()}
             </h1>
 
             {/* Subtitle: Only shown for first-time welcome, removed when username is known */}
             {step === "first_welcome" && (
               <p
-                className={`text-xs sm:text-sm text-stone-500 font-medium tracking-wide transition-opacity duration-700 ${
+                className={`text-xs sm:text-sm text-[var(--muted-foreground)] font-medium tracking-wide transition-opacity duration-700 ${
                   typedText.length >= 7 ? "opacity-100" : "opacity-0"
                 }`}
               >
@@ -288,9 +321,9 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
                 <button
                   type="button"
                   onClick={() => setShowSyncModal(true)}
-                  className="text-xs text-stone-400 hover:text-stone-700 underline underline-offset-4 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] underline underline-offset-4 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <QrCode className="w-3.5 h-3.5 text-amber-600" />
+                  <QrCode className="w-3.5 h-3.5" />
                   <span>Already using Moodie? Sync / Scan QR</span>
                 </button>
               </div>
@@ -310,13 +343,13 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
                   }}
                   placeholder="your name or nickname"
                   maxLength={24}
-                  className="w-full bg-white/55 hover:bg-white/70 focus:bg-white/85 backdrop-blur-md border border-white/80 rounded-2xl px-4 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 text-center shadow-xs transition-all"
+                  className="w-full bg-[var(--card)]/80 hover:bg-[var(--card)] focus:bg-[var(--card)] backdrop-blur-md border border-[var(--border)] rounded-2xl px-4 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-center shadow-xs transition-all"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={handleSaveName}
-                  className="rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-4 py-2.5 text-sm transition-all shadow-xs cursor-pointer hover:scale-105"
+                  className="rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-semibold px-4 py-2.5 text-sm transition-all shadow-xs cursor-pointer hover:scale-105 shrink-0"
                 >
                   continue
                 </button>
@@ -325,7 +358,7 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
                 <button
                   type="button"
                   onClick={handleSkipName}
-                  className="text-[11px] text-stone-400 hover:text-stone-600 underline cursor-pointer"
+                  className="text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] underline cursor-pointer"
                 >
                   or continue without a name
                 </button>
@@ -339,7 +372,7 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
               <button
                 type="button"
                 onClick={() => setStep("quote_revealed")}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white/55 hover:bg-white/80 backdrop-blur-md text-amber-950 border border-white/80 px-6 py-3 text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-[0_4px_16px_0_rgba(28,25,23,0.04)] cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[var(--card)]/75 hover:bg-[var(--card)] backdrop-blur-md text-[var(--foreground)] border border-[var(--border)] px-6 py-3 text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-md cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-amber-500 fill-amber-300" />
                 <span>quote of the day</span>
@@ -354,7 +387,7 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
                 <button
                   type="button"
                   onClick={() => setStep("quote_revealed")}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-white/55 hover:bg-white/80 backdrop-blur-md text-amber-950 border border-white/80 px-6 py-3 text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-[0_4px_16px_0_rgba(28,25,23,0.04)] cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[var(--card)]/75 hover:bg-[var(--card)] backdrop-blur-md text-[var(--foreground)] border border-[var(--border)] px-6 py-3 text-sm font-semibold transition-all duration-200 hover:scale-105 shadow-md cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-amber-500 fill-amber-300" />
                   <span>quote of the day</span>
@@ -367,7 +400,7 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
                     setNameInput(currentName)
                     setStep("first_ask_name")
                   }}
-                  className="text-[11px] text-stone-400 hover:text-stone-600 underline cursor-pointer"
+                  className="text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] underline cursor-pointer"
                 >
                   change name
                 </button>
@@ -379,19 +412,19 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
           {step === "quote_revealed" && (
             <div className="space-y-5 animate-in fade-in zoom-in-95 duration-500 ease-out">
               {/* Daily Quote Card - Frosted Translucent Glass */}
-              <div className="relative overflow-hidden rounded-3xl bg-white/35 backdrop-blur-xl border border-white/60 p-6 sm:p-7 text-left space-y-3.5 shadow-[0_8px_32px_0_rgba(28,25,23,0.06),inset_0_1px_1px_0_rgba(255,255,255,0.8)] transition-all duration-500">
+              <div className="relative overflow-hidden rounded-3xl bg-[var(--card)]/75 backdrop-blur-xl border border-[var(--border)] p-6 sm:p-7 text-left space-y-3.5 shadow-xl transition-all duration-300">
                 {/* Subtle glass reflection highlight */}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/35 via-white/5 to-transparent" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent" />
 
                 <div className="relative z-10 space-y-3">
-                  <span className="text-3xl text-amber-500/90 font-serif leading-none block select-none">“</span>
-                  <p className="text-stone-800 text-base sm:text-lg leading-relaxed italic font-serif -mt-2">
+                  <span className="text-3xl text-[var(--primary)] font-serif leading-none block select-none">“</span>
+                  <p className="text-[var(--foreground)] text-base sm:text-lg leading-relaxed italic font-serif -mt-2">
                     {quote.quote}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-stone-500 pt-3 border-t border-stone-900/10">
-                    <span className="font-medium text-stone-600">— {quote.source}</span>
+                  <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] pt-3 border-t border-[var(--border)]">
+                    <span className="font-medium text-[var(--foreground)]">— {quote.source}</span>
                     {quote.tag && (
-                      <span className="bg-amber-100/60 text-amber-800/90 text-[10px] px-2.5 py-0.5 rounded-full font-medium border border-amber-200/50 backdrop-blur-xs">
+                      <span className="bg-[var(--accent)] text-[var(--accent-foreground)] text-[10px] px-2.5 py-0.5 rounded-full font-medium border border-[var(--border)]">
                         {quote.tag}
                       </span>
                     )}
@@ -420,6 +453,11 @@ export function WelcomePage({ onStart }: { onStart: () => void }) {
           setShowSyncModal(false)
           onStart()
         }}
+      />
+
+      <ThemeModal
+        open={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
       />
     </div>
   )
